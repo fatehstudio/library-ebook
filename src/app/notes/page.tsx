@@ -65,7 +65,41 @@ const getHighlighterColors = (collection: string) => {
 export default function Notes() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const { highlights, collections } = useLibrary();
+  const { highlights, collections, updateHighlight, deleteHighlight } = useLibrary();
+
+  // Inline editing states
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editHighlightText, setEditHighlightText] = useState('');
+  const [editNoteText, setEditNoteText] = useState('');
+
+  const handleEditClick = (note: any) => {
+    if (note.id && String(note.id).startsWith('mock-')) {
+      alert("This is a template note. You can create your own notes by highlighting text inside any book in the PDF Reader!");
+      return;
+    }
+    setEditingId(note.id);
+    setEditHighlightText(note.text);
+    setEditNoteText(note.note || '');
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    if (!editHighlightText.trim()) {
+      alert("Highlight text cannot be empty.");
+      return;
+    }
+    await updateHighlight(id, editHighlightText, editNoteText);
+    setEditingId(null);
+  };
+
+  const handleDelete = async (id: any) => {
+    if (id && String(id).startsWith('mock-')) {
+      alert("This is a template note. You can only edit/delete notes you create on your synced books!");
+      return;
+    }
+    if (confirm("Are you sure you want to delete this note?")) {
+      await deleteHighlight(id);
+    }
+  };
 
   // AI Chat States
   const [aiExpanded, setAiExpanded] = useState(false);
@@ -568,32 +602,77 @@ export default function Notes() {
                   </span>
                 </div>
 
-                {/* Kindle Highlighter Text */}
-                <div className="text-sm text-foreground/90 font-serif leading-relaxed italic pl-1 py-1">
-                  <span className={colors.highlightClass}>
-                    "{note.text}"
-                  </span>
-                </div>
+                {editingId === note.id ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] uppercase font-bold text-muted-custom">Highlighted Text</label>
+                      <textarea
+                        value={editHighlightText}
+                        onChange={(e) => setEditHighlightText(e.target.value)}
+                        className="w-full p-3 text-xs bg-background border border-border-custom rounded-xl focus:outline-none focus:border-accent-gold text-foreground font-serif leading-relaxed"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] uppercase font-bold text-muted-custom">My Thoughts</label>
+                      <textarea
+                        value={editNoteText}
+                        onChange={(e) => setEditNoteText(e.target.value)}
+                        className="w-full p-3 text-xs bg-background border border-border-custom rounded-xl focus:outline-none focus:border-accent-gold text-foreground leading-relaxed"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="px-3 py-1.5 border border-border-custom text-muted-custom rounded-xl text-xs font-bold hover:text-foreground transition-all cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleSaveEdit(note.id)}
+                        className="px-3 py-1.5 bg-accent-gold text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all cursor-pointer"
+                      >
+                        Save Changes
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Kindle Highlighter Text */}
+                    <div className="text-sm text-foreground/90 font-serif leading-relaxed italic pl-1 py-1">
+                      <span className={colors.highlightClass}>
+                        "{note.text}"
+                      </span>
+                    </div>
 
-                {/* Sticky Post-it style thoughts */}
-                <div className={`rounded-2xl p-4 border flex flex-col gap-1.5 shadow-inner ${colors.thoughtBg}`}>
-                  <span className="text-[9px] uppercase tracking-wider font-bold text-muted-custom">
-                    My Thoughts
-                  </span>
-                  <p className="text-xs text-foreground/80 leading-relaxed">
-                    {note.note}
-                  </p>
-                </div>
+                    {/* Sticky Post-it style thoughts */}
+                    <div className={`rounded-2xl p-4 border flex flex-col gap-1.5 shadow-inner ${colors.thoughtBg}`}>
+                      <span className="text-[9px] uppercase tracking-wider font-bold text-muted-custom">
+                        My Thoughts
+                      </span>
+                      <p className="text-xs text-foreground/80 leading-relaxed">
+                        {note.note}
+                      </p>
+                    </div>
 
-                {/* Operations Footer */}
-                <div className="flex justify-end gap-3 pt-3 border-t border-border-custom/30 text-muted-custom text-xs">
-                  <button className="hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer font-semibold">
-                    <Edit className="w-3.5 h-3.5" /> Edit
-                  </button>
-                  <button className="hover:text-red-400 flex items-center gap-1 transition-colors cursor-pointer font-semibold">
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                  </button>
-                </div>
+                    {/* Operations Footer */}
+                    <div className="flex justify-end gap-3 pt-3 border-t border-border-custom/30 text-muted-custom text-xs">
+                      <button 
+                        onClick={() => handleEditClick(note)}
+                        className="hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer font-semibold"
+                      >
+                        <Edit className="w-3.5 h-3.5" /> Edit
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(note.id)}
+                        className="hover:text-red-400 flex items-center gap-1 transition-colors cursor-pointer font-semibold"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })
