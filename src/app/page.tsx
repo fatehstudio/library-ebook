@@ -249,7 +249,7 @@ export default function Home() {
             title="Swap columns layout (Left/Right)"
           >
             <Columns className="w-4 h-4 text-accent-gold shrink-0" />
-            <span className="hidden sm:inline text-[10px] uppercase font-bold tracking-wider leading-none">Swap Layout</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider leading-none">Swap Layout</span>
           </button>
         </div>
       </header>
