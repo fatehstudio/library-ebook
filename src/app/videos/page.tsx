@@ -27,7 +27,37 @@ function VideosContent() {
   const [watchedMinInput, setWatchedMinInput] = useState('');
   const [totalMinInput, setTotalMinInput] = useState('');
 
+  // Bulk select & categorize states
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
+  const [bulkCategory, setBulkCategory] = useState('');
+
   const activeVideo = videos.find(v => v.id === selectedVideo?.id) || null;
+
+  const handleCardClick = (vid: any) => {
+    if (isBulkMode) {
+      if (selectedVideoIds.includes(vid.id)) {
+        setSelectedVideoIds(selectedVideoIds.filter(id => id !== vid.id));
+      } else {
+        setSelectedVideoIds([...selectedVideoIds, vid.id]);
+      }
+    } else {
+      setSelectedVideo({ id: vid.id });
+    }
+  };
+
+  const handleBulkCategorize = async () => {
+    if (!bulkCategory || selectedVideoIds.length === 0) return;
+    
+    if (confirm(`Are you sure you want to move ${selectedVideoIds.length} videos to "${bulkCategory}"?`)) {
+      for (const id of selectedVideoIds) {
+        await updateItemCollection(id, bulkCategory);
+      }
+      setSelectedVideoIds([]);
+      setIsBulkMode(false);
+      setBulkCategory('');
+    }
+  };
 
   // Sync details drawer input with active video current time & total duration (converted to minutes)
   useEffect(() => {
@@ -71,13 +101,28 @@ function VideosContent() {
 
   return (
     <div className="flex-1 p-6 md:p-10 max-w-5xl mx-auto w-full relative">
-      <header className="mb-8">
-        <h1 className="text-sm font-medium text-muted-custom uppercase tracking-widest mb-1">
-          Video lectures & guides
-        </h1>
-        <p className="font-handwritten text-4xl font-bold tracking-tight text-header-custom">
-          Videos
-        </p>
+      <header className="mb-8 flex items-end justify-between">
+        <div>
+          <h1 className="text-sm font-medium text-muted-custom uppercase tracking-widest mb-1">
+            Video lectures & guides
+          </h1>
+          <p className="font-handwritten text-4xl font-bold tracking-tight text-header-custom">
+            Videos
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setIsBulkMode(!isBulkMode);
+            setSelectedVideoIds([]);
+          }}
+          className={`px-4.5 py-2.5 rounded-2xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+            isBulkMode
+              ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+              : 'bg-card border-border-custom text-muted-custom hover:text-foreground'
+          }`}
+        >
+          {isBulkMode ? 'Cancel Select' : 'Bulk Select'}
+        </button>
       </header>
 
       {/* Search Input */}
@@ -172,16 +217,29 @@ function VideosContent() {
           {filteredVideos.map((vid) => (
             <div 
               key={vid.id} 
-              onClick={() => setSelectedVideo({ id: vid.id })}
-              className="group cursor-pointer bg-card border border-border-custom rounded-3xl overflow-hidden shadow-sm hover:border-accent-gold/30 hover:shadow-md transition-all duration-300 flex flex-col justify-between"
+              onClick={() => handleCardClick(vid)}
+              className={`group cursor-pointer bg-card border rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between ${
+                isBulkMode && selectedVideoIds.includes(vid.id)
+                  ? 'border-accent-gold ring-2 ring-accent-gold/20'
+                  : 'border-border-custom hover:border-accent-gold/30'
+              }`}
             >
               {/* Mock Thumbnail */}
               <div className={`aspect-video w-full flex items-center justify-center border-b border-border-custom relative overflow-hidden ${vid.thumbnailColor}`}>
-                {vid.isFavorite && (
+                {isBulkMode ? (
+                  <div className="absolute top-2 left-2 z-10 bg-black/60 p-1.5 rounded-full">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedVideoIds.includes(vid.id)} 
+                      onChange={() => {}} 
+                      className="w-4 h-4 accent-accent-gold cursor-pointer"
+                    />
+                  </div>
+                ) : vid.isFavorite ? (
                   <div className="absolute top-2 right-2 text-accent-gold bg-black/60 p-1.5 rounded-full z-10">
                     <Star className="w-3.5 h-3.5 fill-accent-gold" />
                   </div>
-                )}
+                ) : null}
                 
                 <div className="p-3 rounded-full bg-background/90 border border-border-custom text-accent-gold group-hover:scale-110 transition-transform duration-300 shadow-md">
                   <Play className="w-4 h-4 fill-accent-gold ml-0.5" />
@@ -233,6 +291,40 @@ function VideosContent() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Floating Bulk Action Bar */}
+      {isBulkMode && selectedVideoIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 max-w-lg w-[90%] bg-card/85 backdrop-blur-md border border-border-custom rounded-3xl p-4 shadow-xl z-50 flex items-center justify-between gap-4 animate-fade-in">
+          <div className="text-xs font-semibold text-foreground">
+            <span className="text-accent-gold font-bold">{selectedVideoIds.length}</span> videos selected
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <select
+              value={bulkCategory}
+              onChange={(e) => setBulkCategory(e.target.value)}
+              className="bg-background border border-border-custom rounded-xl px-2.5 py-1.5 text-xs text-foreground focus:outline-none cursor-pointer font-semibold"
+            >
+              <option value="">Move to...</option>
+              {collections.map((c) => (
+                <option key={c.slug} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+            
+            <button
+              onClick={handleBulkCategorize}
+              disabled={!bulkCategory}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                bulkCategory 
+                  ? 'bg-accent-gold text-background hover:opacity-90' 
+                  : 'bg-neutral-600 text-neutral-400 cursor-not-allowed'
+              }`}
+            >
+              Apply
+            </button>
+          </div>
         </div>
       )}
 
