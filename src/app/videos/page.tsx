@@ -18,7 +18,7 @@ import { useLibrary } from '@/context/LibraryContext';
 function VideosContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { videos, collections, updateVideoProgress, updateVideoRating, toggleVideoFavorite, updateItemCollection } = useLibrary();
+  const { videos, collections, updateVideoProgress, updateVideoRating, toggleVideoFavorite, updateItemCollection, updateVideoMetadata } = useLibrary();
   
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -26,6 +26,32 @@ function VideosContent() {
   const [selectedVideo, setSelectedVideo] = useState<{ id: string } | null>(null);
   const [watchedMinInput, setWatchedMinInput] = useState('');
   const [totalMinInput, setTotalMinInput] = useState('');
+
+  // Video metadata edit states
+  const [titleInput, setTitleInput] = useState('');
+  const [speakerInput, setSpeakerInput] = useState('');
+  const [thumbnailInput, setThumbnailInput] = useState('');
+
+  // Loading skeleton and retry error states
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadVideosData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Simulate data loading delay for skeleton preview
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setIsLoading(false);
+    } catch (err) {
+      setError('Failed to fetch video catalog. Please check your connection.');
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadVideosData();
+  }, []);
 
   // Bulk select & categorize states
   const [isBulkMode, setIsBulkMode] = useState(false);
@@ -59,13 +85,16 @@ function VideosContent() {
     }
   };
 
-  // Sync details drawer input with active video current time & total duration (converted to minutes)
+  // Sync details drawer input with active video current time & total duration (converted to minutes) and metadata
   useEffect(() => {
     if (activeVideo) {
       setWatchedMinInput((activeVideo.currentTime / 60).toFixed(2));
       setTotalMinInput((activeVideo.totalDuration / 60).toFixed(2));
+      setTitleInput(activeVideo.title);
+      setSpeakerInput(activeVideo.author);
+      setThumbnailInput(activeVideo.thumbnailUrl || '');
     }
-  }, [selectedVideo?.id, activeVideo?.currentTime, activeVideo?.totalDuration]);
+  }, [selectedVideo?.id, activeVideo?.currentTime, activeVideo?.totalDuration, activeVideo?.title, activeVideo?.author, activeVideo?.thumbnailUrl]);
 
   // Sync category param from homepage clicks
   useEffect(() => {
@@ -204,12 +233,41 @@ function VideosContent() {
       </div>
 
       {/* Videos Grid */}
-      {filteredVideos.length === 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="border border-border-custom bg-card/40 rounded-3xl p-4 flex flex-col gap-3 animate-pulse">
+              <div className="aspect-video w-full bg-foreground/10 rounded-2xl" />
+              <div className="h-5 bg-foreground/10 rounded-md w-3/4" />
+              <div className="h-4 bg-foreground/5 rounded-md w-1/2" />
+              <div className="h-3.5 bg-foreground/5 rounded-full w-1/4 mt-1" />
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-red-500/20 bg-red-500/5 rounded-3xl p-6 max-w-md mx-auto animate-fade-in">
+          <HelpCircle className="w-12 h-12 text-red-400 mb-3" />
+          <h3 className="font-serif text-lg font-bold text-red-400">Failed to load videos</h3>
+          <p className="text-xs text-muted-custom max-w-xs mt-1 mb-4">
+            {error}
+          </p>
+          <button 
+            onClick={loadVideosData}
+            className="px-6 py-2.5 bg-accent-gold text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all cursor-pointer shadow-sm"
+          >
+            Retry Fetch 🔄
+          </button>
+        </div>
+      ) : filteredVideos.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border-custom rounded-3xl p-6">
           <VideoIcon className="w-12 h-12 text-muted-custom mb-3 opacity-50" />
-          <h3 className="font-serif text-lg font-bold">No videos found</h3>
+          <h3 className="font-serif text-lg font-bold">
+            {search ? 'No videos match your query' : 'Your video library is empty'}
+          </h3>
           <p className="text-xs text-muted-custom max-w-xs mt-1">
-            Try adjusting your category or status filters.
+            {search 
+              ? 'Try adjusting your category or status filters.' 
+              : 'Add your first video to begin watching.'}
           </p>
         </div>
       ) : (
@@ -224,7 +282,7 @@ function VideosContent() {
                   : 'border-border-custom hover:border-accent-gold/30'
               }`}
             >
-              {/* Mock Thumbnail */}
+              {/* Video Thumbnail */}
               <div className={`aspect-video w-full flex items-center justify-center border-b border-border-custom relative overflow-hidden ${vid.thumbnailColor}`}>
                 {isBulkMode ? (
                   <div className="absolute top-2 left-2 z-10 bg-black/60 p-1.5 rounded-full">
@@ -241,9 +299,17 @@ function VideosContent() {
                   </div>
                 ) : null}
                 
-                <div className="p-3 rounded-full bg-background/90 border border-border-custom text-accent-gold group-hover:scale-110 transition-transform duration-300 shadow-md">
-                  <Play className="w-4 h-4 fill-accent-gold ml-0.5" />
-                </div>
+                {vid.thumbnailUrl ? (
+                  <img 
+                    src={vid.thumbnailUrl} 
+                    alt={vid.title} 
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <div className="p-3 rounded-full bg-background/90 border border-border-custom text-accent-gold group-hover:scale-110 transition-transform duration-300 shadow-md">
+                    <Play className="w-4 h-4 fill-accent-gold ml-0.5" />
+                  </div>
+                )}
                 
                 <span className="absolute bottom-2.5 right-2.5 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-mono text-white font-bold tracking-wider">
                   {vid.duration}
@@ -491,6 +557,66 @@ function VideosContent() {
                     className="w-full py-2.5 bg-accent-gold text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     Save Progress
+                  </button>
+                </div>
+              </div>
+
+              {/* Edit Video Details fields */}
+              <div className="mb-6 bg-foreground/5 p-4 rounded-2xl border border-border-custom/50">
+                <h4 className="text-[10px] uppercase font-bold tracking-widest text-muted-custom mb-3">
+                  Edit Video Details
+                </h4>
+                
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-muted-custom tracking-wider block mb-1">
+                      Video Title
+                    </label>
+                    <input
+                      type="text"
+                      value={titleInput}
+                      onChange={(e) => setTitleInput(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-background border border-border-custom text-foreground font-semibold focus:outline-none focus:border-accent-gold"
+                      placeholder="Enter video title"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-muted-custom tracking-wider block mb-1">
+                      Speaker / Penceramah
+                    </label>
+                    <input
+                      type="text"
+                      value={speakerInput}
+                      onChange={(e) => setSpeakerInput(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-background border border-border-custom text-foreground font-semibold focus:outline-none focus:border-accent-gold"
+                      placeholder="Enter speaker name"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase font-bold text-muted-custom tracking-wider block mb-1">
+                      Thumbnail URL
+                    </label>
+                    <input
+                      type="text"
+                      value={thumbnailInput}
+                      onChange={(e) => setThumbnailInput(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-background border border-border-custom text-foreground font-semibold focus:outline-none focus:border-accent-gold"
+                      placeholder="Paste image web link"
+                    />
+                  </div>
+                  
+                  <button
+                    onClick={async () => {
+                      if (!titleInput.trim()) {
+                        alert('Title cannot be empty.');
+                        return;
+                      }
+                      await updateVideoMetadata(activeVideo.id, titleInput.trim(), speakerInput.trim(), thumbnailInput.trim());
+                      alert('Video details updated successfully!');
+                    }}
+                    className="w-full py-2.5 bg-accent-gold text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    Save Details
                   </button>
                 </div>
               </div>
