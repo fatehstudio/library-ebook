@@ -88,6 +88,8 @@ interface LibraryContextType {
   deleteDashboard: (id: string) => Promise<void>;
   syncGoogleDrive: () => Promise<void>;
   addHighlight: (libraryItemId: string, text: string, note?: string, color?: string) => Promise<void>;
+  updateHighlight: (id: string, text: string, note?: string) => Promise<void>;
+  deleteHighlight: (id: string) => Promise<void>;
   updateItemCollection: (itemId: string, collectionName: string) => Promise<void>;
   updateBookCover: (id: string, url: string) => Promise<void>;
 }
@@ -859,7 +861,9 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       source: title,
       author,
       collection,
-      dateAdded: new Date().toISOString().split('T')[0]
+      dateAdded: new Date().toISOString().split('T')[0],
+      note,
+      color: color || 'hsl(45, 100%, 75%)'
     };
 
     const updated = [newHighlight, ...highlights];
@@ -868,12 +872,51 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
 
     if (isCloudMode) {
       await supabase.from('highlights').insert({
+        id: newHighlight.id,
         user_id: userId,
         library_item_id: libraryItemId,
         text,
         note,
         color: color || 'hsl(45, 100%, 75%)'
       });
+    }
+  };
+
+  const updateHighlight = async (id: string, text: string, note?: string) => {
+    const updated = highlights.map(h => h.id === id ? { ...h, text, note } : h);
+    setHighlights(updated);
+    localStorage.setItem('kb-highlights', JSON.stringify(updated));
+
+    if (isCloudMode) {
+      try {
+        await supabase
+          .from('highlights')
+          .update({
+            text,
+            note,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id);
+      } catch (err) {
+        console.error('Failed to update highlight in DB:', err);
+      }
+    }
+  };
+
+  const deleteHighlight = async (id: string) => {
+    const updated = highlights.filter(h => h.id !== id);
+    setHighlights(updated);
+    localStorage.setItem('kb-highlights', JSON.stringify(updated));
+
+    if (isCloudMode) {
+      try {
+        await supabase
+          .from('highlights')
+          .delete()
+          .eq('id', id);
+      } catch (err) {
+        console.error('Failed to delete highlight from DB:', err);
+      }
     }
   };
 
@@ -967,6 +1010,8 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       deleteDashboard,
       syncGoogleDrive,
       addHighlight,
+      updateHighlight,
+      deleteHighlight,
       updateItemCollection,
       updateBookCover
     }}>
