@@ -13,7 +13,8 @@ import {
   X,
   Clock,
   BookOpen,
-  Sparkles
+  Sparkles,
+  Plus
 } from 'lucide-react';
 import { useLibrary } from '@/context/LibraryContext';
 
@@ -63,7 +64,7 @@ const getCategoryColors = (collection: string) => {
 function EbooksContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { books, collections, updateBookProgress, updateBookRating, toggleBookFavorite, updateItemCollection, updateBookCover, searchPageContents } = useLibrary();
+  const { books, collections, updateBookProgress, updateBookRating, toggleBookFavorite, updateItemCollection, updateBookCover, searchPageContents, syncGoogleDrive, isSyncing } = useLibrary();
   
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -77,6 +78,9 @@ function EbooksContent() {
   const [pageSearchResults, setPageSearchResults] = useState<any[]>([]);
   const [isSearchingPages, setIsSearchingPages] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Add Ebook Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Bulk select & categorize states
   const [isBulkMode, setIsBulkMode] = useState(false);
@@ -193,19 +197,28 @@ function EbooksContent() {
             Library
           </p>
         </div>
-        <button
-          onClick={() => {
-            setIsBulkMode(!isBulkMode);
-            setSelectedBookIds([]);
-          }}
-          className={`px-4.5 py-2.5 rounded-2xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
-            isBulkMode
-              ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-              : 'bg-card border-border-custom text-muted-custom hover:text-foreground'
-          }`}
-        >
-          {isBulkMode ? 'Cancel Select' : 'Bulk Select'}
-        </button>
+        <div className="flex gap-2 shrink-0">
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="px-4.5 py-2.5 rounded-2xl text-xs font-bold bg-accent-gold text-background hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Ebook
+          </button>
+          <button
+            onClick={() => {
+              setIsBulkMode(!isBulkMode);
+              setSelectedBookIds([]);
+            }}
+            className={`px-4.5 py-2.5 rounded-2xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
+              isBulkMode
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                : 'bg-card border-border-custom text-muted-custom hover:text-foreground'
+            }`}
+          >
+            {isBulkMode ? 'Cancel Select' : 'Bulk Select'}
+          </button>
+        </div>
       </header>
 
       {/* Search Input */}
@@ -367,9 +380,13 @@ function EbooksContent() {
       {filteredBooks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border-custom rounded-3xl p-6">
           <BookOpen className="w-12 h-12 text-muted-custom mb-3 opacity-50" />
-          <h3 className="font-serif text-lg font-bold">No books found</h3>
+          <h3 className="font-serif text-lg font-bold">
+            {search ? 'No books match your query' : 'Your library is empty'}
+          </h3>
           <p className="text-xs text-muted-custom max-w-xs mt-1">
-            Try adjusting your category or status filters.
+            {search 
+              ? 'Try adjusting your search terms or filters.' 
+              : 'Add your first ebook to begin reading.'}
           </p>
         </div>
       ) : (
@@ -686,6 +703,74 @@ function EbooksContent() {
             </button>
           </div>
         </>
+      )}
+
+      {/* Add Ebook Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md p-6 bg-card border border-border-custom rounded-3xl shadow-xl animate-scale-in">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-serif text-lg font-bold text-header-custom flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-accent-gold" />
+                Add Ebook to Library
+              </h3>
+              <button 
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-1.5 rounded-full hover:bg-foreground/5 text-muted-custom transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="text-xs text-foreground/80 leading-relaxed mb-6 space-y-3">
+              <p>
+                Your library is linked to the <strong>Google Drive</strong> folder: 
+                <span className="block mt-1 font-mono bg-foreground/5 p-2 rounded-xl border border-foreground/[0.04] text-foreground font-semibold">
+                  /Knowledge Library
+                </span>
+              </p>
+              <div className="p-3 bg-accent-gold/5 border border-accent-gold/20 rounded-2xl text-[11px] leading-relaxed">
+                <strong className="text-accent-gold font-bold">Steps to add new PDF:</strong>
+                <ol className="list-decimal pl-4.5 mt-1 space-y-1 font-semibold">
+                  <li>Upload the PDF file to your Google Drive under folder <strong>Knowledge Library</strong>.</li>
+                  <li>Click <strong>Open Google Drive</strong> to access folder.</li>
+                  <li>Click <strong>Sync Now</strong> below to import!</li>
+                </ol>
+              </div>
+            </div>
+            
+            <div className="flex flex-col gap-2.5">
+              <a 
+                href="https://drive.google.com/drive/my-drive"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-3 bg-foreground text-background font-bold rounded-2xl text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-all text-center shadow-sm"
+              >
+                Open Google Drive 🌐
+              </a>
+              
+              <button
+                disabled={isSyncing}
+                onClick={async () => {
+                  await syncGoogleDrive();
+                  setIsAddModalOpen(false);
+                }}
+                className="w-full py-3 bg-accent-gold text-background font-bold rounded-2xl text-xs flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
+              >
+                {isSyncing ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-background border-t-transparent rounded-full animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    Sync Now 🔄
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
