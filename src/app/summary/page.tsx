@@ -74,6 +74,16 @@ export default function Summary() {
   const totalPagesRead = books.reduce((acc, b) => acc + b.currentPage, 0);
   const totalDurationMin = videos.reduce((acc, v) => acc + Math.round(v.currentTime), 0);
 
+  // Calculate unique study days for streak
+  const uniqueStudyDates = new Set<string>();
+  highlights.forEach(h => {
+    if (h.dateAdded) {
+      const datePart = h.dateAdded.split(',')[0] || h.dateAdded;
+      uniqueStudyDates.add(datePart);
+    }
+  });
+  const streakDays = uniqueStudyDates.size;
+
   // Real Achievement Badge Checks
   const isFirstBookDone = completedBooks.length >= 1;
   const isTenBooksDone = completedBooks.length >= 10;
@@ -119,8 +129,8 @@ export default function Summary() {
       emoji: '🔥',
       title: '30-Day Reading Streak',
       desc: 'Maintain a study streak of 30 consecutive days.',
-      unlocked: false, // streak is mock-logged as 12
-      progress: '12/30 days'
+      unlocked: streakDays >= 30,
+      progress: `${streakDays}/30 days`
     },
     {
       id: '10_books',
@@ -153,117 +163,67 @@ export default function Summary() {
     }
   };
 
-  // Mock Timeline Milestones
+  // Dynamically calculate timeline events based on real user actions
   const TIMELINE_EVENTS = [
-    {
-      date: 'Aug 3, 2026',
-      title: 'Current Progress Sync',
-      desc: 'Logged 35 mins of Surah Al-Baqarah Tafsir video progress.',
+    // Completed Ebooks
+    ...books.filter(b => b.status === 'completed').map(b => ({
+      date: b.dateAdded || 'Recently',
+      title: `Finished Ebook: ${b.title}`,
+      desc: `Completed reading all pages of ${b.title}.`,
+      type: 'milestone',
+      icon: Award,
+      color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
+    })),
+    // Started Ebooks
+    ...books.filter(b => b.status === 'reading').map(b => ({
+      date: b.dateAdded || 'Recently',
+      title: `Started Ebook: ${b.title}`,
+      desc: `Began reading. Current progress: ${b.progress}%`,
+      type: 'book',
+      icon: BookOpen,
+      color: 'text-blue-500 bg-blue-500/10 border-blue-500/20'
+    })),
+    // Active highlights
+    ...highlights.slice(0, 4).map(h => ({
+      date: h.dateAdded || 'Recently',
+      title: 'Added Highlight & Note',
+      desc: `"${h.text.substring(0, 50)}..."`,
+      type: 'book',
+      icon: Sparkles,
+      color: 'text-purple-500 bg-purple-500/10 border-purple-500/20'
+    })),
+    // Watched lectures
+    ...videos.filter(v => v.currentTime > 0).map(v => ({
+      date: v.dateAdded || 'Recently',
+      title: `Watched Lecture: ${v.title}`,
+      desc: `Logged ${Math.round(v.currentTime / 60)} minutes of video progress.`,
       type: 'video',
       icon: Clock,
       color: 'text-amber-500 bg-amber-500/10 border-amber-500/20'
-    },
-    {
-      date: 'Aug 1, 2026',
-      title: 'Finished Ebook: Atomic Habits',
-      desc: 'Completed all 320 pages. Journey took 51 days.',
-      type: 'milestone',
-      icon: Award,
-      color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20 animate-pulse'
-    },
-    {
-      date: 'Jul 29, 2026',
-      title: 'Started Ebook: Tafsir Ibn Kathir',
-      desc: 'Read first 35 pages of Surah Al-Baqarah commentary.',
-      type: 'book',
-      icon: BookOpen,
-      color: 'text-blue-500 bg-blue-500/10 border-blue-500/20'
-    },
-    {
-      date: 'Jul 28, 2026',
-      title: 'Started Ebook: The Productive Muslim',
-      desc: 'Began reading chapter on spiritual productivity.',
-      type: 'book',
-      icon: BookOpen,
-      color: 'text-blue-500 bg-blue-500/10 border-blue-500/20'
-    },
-    {
-      date: 'Jul 15, 2026',
-      title: 'Started Ebook: Trading in the Zone',
-      desc: 'Began exploring risk acceptance and trading psychology.',
-      type: 'book',
-      icon: BookOpen,
-      color: 'text-blue-500 bg-blue-500/10 border-blue-500/20'
-    },
-    {
-      date: 'Jun 10, 2026',
-      title: 'Began Reading Journey',
-      desc: 'First ebook added: "Atomic Habits" by James Clear.',
-      type: 'milestone',
-      icon: Sparkles,
-      color: 'text-purple-500 bg-purple-500/10 border-purple-500/20'
-    }
-  ];
+    }))
+  ]
+  .slice(0, 6);
 
-  // Mock Durations for completed/in-progress books
-  const BOOK_DURATIONS = [
-    {
-      title: 'Atomic Habits',
-      author: 'James Clear',
-      status: 'completed',
-      duration: 'June - August (2026)',
-      days: '51 Days',
-      pages: 320,
-      collection: 'Self Development',
-      startedDate: '10 June 2026',
-      completedDate: '01 August 2026',
-      readingTime: '17 hours 10 minutes',
-      rating: '5/5',
-      notesCount: getRealNotesCount('Atomic Habits', 8)
-    },
-    {
-      title: 'Trading in the Zone',
-      author: 'Mark Douglas',
-      status: 'reading',
-      duration: 'July - Present',
-      days: 'Active (19 days)',
-      pages: 152,
-      collection: 'Trading',
-      startedDate: '15 July 2026',
-      completedDate: 'In Progress',
-      readingTime: '8 hours 15 minutes',
-      rating: '5/5 (current)',
-      notesCount: getRealNotesCount('Trading in the Zone', 4)
-    },
-    {
-      title: 'The Productive Muslim',
-      author: 'Mohammed Faris',
-      status: 'reading',
-      duration: 'July - Present',
-      days: 'Active (6 days)',
-      pages: 96,
-      collection: 'Quran',
-      startedDate: '28 July 2026',
-      completedDate: 'In Progress',
-      readingTime: '4 hours 30 minutes',
-      rating: '4/5 (current)',
-      notesCount: getRealNotesCount('The Productive Muslim', 2)
-    },
-    {
-      title: 'Tafsir Ibn Kathir (Surah Al-Baqarah)',
-      author: 'Imam Ibn Kathir',
-      status: 'reading',
-      duration: 'July - Present',
-      days: 'Active (5 days)',
-      pages: 35,
-      collection: 'Quran',
-      startedDate: '29 July 2026',
-      completedDate: 'In Progress',
-      readingTime: '1 hour 45 minutes',
-      rating: '5/5 (current)',
-      notesCount: getRealNotesCount('Tafsir Ibn Kathir (Surah Al-Baqarah)', 1)
-    }
-  ];
+  // Dynamically calculate reading durations based on real books list
+  const BOOK_DURATIONS = books
+    .filter(b => b.status === 'completed' || b.status === 'reading')
+    .map(b => {
+      const notes = highlights.filter(h => h.source.toLowerCase().trim() === b.title.toLowerCase().trim());
+      return {
+        title: b.title,
+        author: b.author || 'Unknown Author',
+        status: b.status,
+        duration: b.status === 'completed' ? 'Completed Study' : 'In Progress',
+        days: b.status === 'completed' ? 'Finished 🎉' : 'Active Reading',
+        pages: b.currentPage || 0,
+        collection: b.collection || 'General',
+        startedDate: b.dateAdded || 'Recently',
+        completedDate: b.status === 'completed' ? 'Completed' : 'In Progress',
+        readingTime: b.status === 'completed' ? 'Completed' : 'Active',
+        rating: b.rating > 0 ? `${b.rating}/5` : 'No rating yet',
+        notesCount: notes.length
+      };
+    });
 
   // Filter book durations based on stat card clicks
   const filteredDurations = BOOK_DURATIONS.filter(book => {
@@ -362,7 +322,7 @@ export default function Summary() {
               Active Streak
             </span>
             <span className="text-2xl font-serif font-bold text-purple-955 dark:text-foreground mt-1 block">
-              12 Days
+              {streakDays} {streakDays === 1 ? 'Day' : 'Days'}
             </span>
             <span className="text-[9px] text-purple-700/80 font-bold block mt-1 dark:text-purple-400 opacity-0 select-none">
               Spacer
