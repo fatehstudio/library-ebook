@@ -92,6 +92,13 @@ interface LibraryContextType {
   deleteHighlight: (id: string) => Promise<void>;
   updateItemCollection: (itemId: string, collectionName: string) => Promise<void>;
   updateBookCover: (id: string, url: string) => Promise<void>;
+  searchPageContents: (query: string) => Promise<Array<{
+    id: string;
+    bookId: string;
+    bookTitle: string;
+    pageNumber: number;
+    contentSnippet: string;
+  }>>;
 }
 
 const DEFAULT_COLLECTIONS: Collection[] = [
@@ -987,6 +994,60 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const searchPageContents = async (query: string) => {
+    if (!query || !isCloudMode) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('pdf_pages')
+        .select(`
+          id,
+          page_number,
+          content,
+          library_items (
+            id,
+            title
+          )
+        `)
+        .textSearch('fts', query, {
+          type: 'websearch',
+          config: 'english'
+        })
+        .limit(15);
+
+      if (error) {
+        console.error('FTS query failed:', error);
+        return [];
+      }
+
+      if (!data) return [];
+
+      return data.map((row: any) => {
+        const content = row.content || '';
+        const cleanQuery = query.toLowerCase();
+        const idx = content.toLowerCase().indexOf(cleanQuery);
+        
+        let contentSnippet = '';
+        if (idx !== -1) {
+          contentSnippet = '...' + content.substring(Math.max(0, idx - 60), Math.min(content.length, idx + 90)) + '...';
+        } else {
+          contentSnippet = content.substring(0, 150) + '...';
+        }
+
+        return {
+          id: row.id,
+          bookId: row.library_items?.id || '',
+          bookTitle: row.library_items?.title || 'Unknown Book',
+          pageNumber: row.page_number,
+          contentSnippet: contentSnippet
+        };
+      });
+    } catch (err) {
+      console.error('Failed to search page contents:', err);
+      return [];
+    }
+  };
+
   return (
     <LibraryContext.Provider value={{ 
       collections, 
@@ -1013,7 +1074,8 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       updateHighlight,
       deleteHighlight,
       updateItemCollection,
-      updateBookCover
+      updateBookCover,
+      searchPageContents
     }}>
       {children}
     </LibraryContext.Provider>
