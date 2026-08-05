@@ -61,13 +61,14 @@ const getCategoryColors = (collection: string) => {
 function EbooksContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { books, collections, updateBookProgress, updateBookRating, toggleBookFavorite, updateItemCollection } = useLibrary();
+  const { books, collections, updateBookProgress, updateBookRating, toggleBookFavorite, updateItemCollection, updateBookCover } = useLibrary();
   
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedCollection, setSelectedCollection] = useState('all');
   const [selectedBook, setSelectedBook] = useState<{ id: string } | null>(null);
   const [pageInput, setPageInput] = useState('');
+  const [coverInput, setCoverInput] = useState('');
 
   // Bulk select & categorize states
   const [isBulkMode, setIsBulkMode] = useState(false);
@@ -105,8 +106,9 @@ function EbooksContent() {
   useEffect(() => {
     if (activeBook) {
       setPageInput(activeBook.currentPage.toString());
+      setCoverInput(activeBook.coverImageUrl || '');
     }
-  }, [selectedBook?.id, activeBook?.currentPage]);
+  }, [selectedBook?.id, activeBook?.currentPage, activeBook?.coverImageUrl]);
 
   // Sync category param from homepage clicks
   useEffect(() => {
@@ -270,9 +272,22 @@ function EbooksContent() {
                 }`}
               >
                 {/* 3D Skeuomorphic Cover */}
-                <div className={`aspect-[2/3] w-full book-cover-3d p-4 font-serif text-xs select-none flex flex-col justify-between relative ${colors.coverBg}`}>
+                <div className="aspect-[2/3] w-full book-cover-3d relative overflow-hidden rounded-2xl border border-border-custom/50 shadow-inner">
+                  {book.coverImageUrl ? (
+                    <img 
+                      src={book.coverImageUrl} 
+                      alt={book.title} 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <div className={`w-full h-full p-4 font-serif text-xs select-none flex flex-col justify-between ${colors.coverBg}`}>
+                      <span className="font-bold leading-snug text-sm line-clamp-4">{book.title}</span>
+                      <span className="text-[10px] opacity-75">{book.author}</span>
+                    </div>
+                  )}
+
                   {isBulkMode ? (
-                    <div className="absolute top-2 left-2 z-10">
+                    <div className="absolute top-2 left-2 z-10 bg-black/60 p-1.5 rounded-full">
                       <input 
                         type="checkbox" 
                         checked={selectedBookIds.includes(book.id)} 
@@ -281,12 +296,10 @@ function EbooksContent() {
                       />
                     </div>
                   ) : book.isFavorite ? (
-                    <div className="absolute top-2 right-2 text-accent-gold z-10">
-                      <Star className="w-4 h-4 fill-accent-gold" />
+                    <div className="absolute top-2 right-2 text-accent-gold z-10 bg-black/40 p-1.5 rounded-full">
+                      <Star className="w-3.5 h-3.5 fill-accent-gold" />
                     </div>
                   ) : null}
-                  <span className="font-bold leading-snug text-sm line-clamp-4">{book.title}</span>
-                  <span className="text-[10px] opacity-75">{book.author}</span>
                 </div>
 
                 {/* Text area */}
@@ -393,9 +406,19 @@ function EbooksContent() {
 
               {/* Cover & Rating details */}
               <div className="flex gap-5 mb-6">
-                <div className={`w-24 h-36 book-cover-3d p-3 font-serif text-[10px] flex flex-col justify-between shrink-0 ${drawerColors.coverBg}`}>
-                  <span className="font-bold leading-tight line-clamp-4">{activeBook.title}</span>
-                  <span className="text-[8px] opacity-75">{activeBook.author}</span>
+                <div className="w-24 h-36 book-cover-3d relative overflow-hidden rounded-xl shrink-0 border border-border-custom/50 shadow-inner">
+                  {activeBook.coverImageUrl ? (
+                    <img 
+                      src={activeBook.coverImageUrl} 
+                      alt={activeBook.title} 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <div className={`w-full h-full p-3 font-serif text-[10px] flex flex-col justify-between ${drawerColors.coverBg}`}>
+                      <span className="font-bold leading-tight line-clamp-4">{activeBook.title}</span>
+                      <span className="text-[8px] opacity-75">{activeBook.author}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 flex flex-col justify-center min-w-0">
@@ -509,6 +532,31 @@ function EbooksContent() {
                     className="px-4 py-2.5 bg-accent-gold text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all cursor-pointer shrink-0"
                   >
                     Save Progress
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Cover Input */}
+              <div className="mb-6 bg-foreground/5 p-4 rounded-2xl border border-border-custom/50 animate-fade-in">
+                <h4 className="text-[10px] uppercase font-bold tracking-widest text-muted-custom mb-3">
+                  Set Book Cover Image
+                </h4>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    placeholder="Paste book cover image URL..."
+                    value={coverInput}
+                    onChange={(e) => setCoverInput(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-background border border-border-custom rounded-xl text-xs text-foreground focus:outline-none focus:border-accent-gold"
+                  />
+                  <button
+                    onClick={async () => {
+                      await updateBookCover(activeBook.id, coverInput);
+                      alert('Book cover updated successfully!');
+                    }}
+                    className="px-4 py-2.5 bg-accent-gold text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all cursor-pointer shrink-0"
+                  >
+                    Save Cover
                   </button>
                 </div>
               </div>
