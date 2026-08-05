@@ -18,7 +18,7 @@ import { useLibrary } from '@/context/LibraryContext';
 function VideosContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { videos, collections, updateVideoProgress, updateVideoRating, toggleVideoFavorite } = useLibrary();
+  const { videos, collections, updateVideoProgress, updateVideoRating, toggleVideoFavorite, updateItemCollection } = useLibrary();
   
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -320,6 +320,19 @@ function VideosContent() {
                     {activeVideo.status === 'not_started' && <HelpCircle className="w-3.5 h-3.5 text-neutral-400" />}
                     {activeVideo.status.replace('_', ' ')}
                   </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-custom">Category</span>
+                  <select
+                    value={activeVideo.collection}
+                    onChange={(e) => updateItemCollection(activeVideo.id, e.target.value)}
+                    className="bg-card border border-border-custom/50 rounded-xl px-2.5 py-1 text-xs text-foreground focus:outline-none cursor-pointer font-semibold"
+                  >
+                    {collections.map(c => (
+                      <option key={c.slug} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
