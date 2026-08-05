@@ -61,7 +61,7 @@ const getCategoryColors = (collection: string) => {
 function EbooksContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { books, collections, updateBookProgress, updateBookRating, toggleBookFavorite } = useLibrary();
+  const { books, collections, updateBookProgress, updateBookRating, toggleBookFavorite, updateItemCollection } = useLibrary();
   
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -345,6 +345,19 @@ function EbooksContent() {
                     {activeBook.status === 'not_started' && <HelpCircle className="w-3.5 h-3.5 text-neutral-400" />}
                     {activeBook.status.replace('_', ' ')}
                   </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-custom">Category</span>
+                  <select
+                    value={activeBook.collection}
+                    onChange={(e) => updateItemCollection(activeBook.id, e.target.value)}
+                    className="bg-card border border-border-custom/50 rounded-xl px-2.5 py-1 text-xs text-foreground focus:outline-none cursor-pointer font-semibold"
+                  >
+                    {collections.map(c => (
+                      <option key={c.slug} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
