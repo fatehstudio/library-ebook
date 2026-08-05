@@ -125,27 +125,62 @@ export async function POST(request: NextRequest) {
         .eq('id', userId);
     }
 
-    // 5. Query files inside the "/Knowledge Library" folder
-    const filesQueryUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
-      `'${folderId}' in parents and (mimeType='application/pdf' or mimeType='video/mp4') and trashed=false`
-    )}&fields=files(id,name,mimeType,size)&pageSize=100`;
+    // 5. Query files recursively inside "/Knowledge Library" including subfolders and shortcuts
+    const discoveredFiles: Array<{ id: string, name: string, mimeType: string, size: string }> = [];
+    const visitedFolders = new Set<string>();
 
-    const filesResp = await fetch(filesQueryUrl, {
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
+    async function scanFolder(fId: string, depth = 0) {
+      if (depth > 4 || visitedFolders.has(fId)) return;
+      visitedFolders.add(fId);
 
-    if (!filesResp.ok) {
-      return NextResponse.json(
-        { error: 'Failed to scan files under /Knowledge Library folder in Google Drive.' },
-        { status: 500 }
-      );
+      const query = `'${fId}' in parents and trashed=false`;
+      const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,size,shortcutDetails(targetId,targetMimeType))&pageSize=100`;
+
+      try {
+        const resp = await fetch(url, {
+          headers: { Authorization: `Bearer ${access_token}` },
+        });
+        if (!resp.ok) {
+          console.error(`Failed to scan folder ${fId}:`, await resp.text());
+          return;
+        }
+
+        const data = await resp.json();
+        const files = data.files || [];
+
+        for (const file of files) {
+          const isEbook = file.mimeType === 'application/pdf';
+          const isVideo = file.mimeType === 'video/mp4';
+
+          if (isEbook || isVideo) {
+            discoveredFiles.push(file);
+          } else if (file.mimeType === 'application/vnd.google-apps.folder') {
+            await scanFolder(file.id, depth + 1);
+          } else if (file.mimeType === 'application/vnd.google-apps.shortcut' && file.shortcutDetails) {
+            const targetMime = file.shortcutDetails.targetMimeType;
+            const targetId = file.shortcutDetails.targetId;
+            if (targetMime === 'application/pdf' || targetMime === 'video/mp4') {
+              discoveredFiles.push({
+                id: targetId,
+                name: file.name,
+                mimeType: targetMime,
+                size: file.size || '0'
+              });
+            } else if (targetMime === 'application/vnd.google-apps.folder') {
+              await scanFolder(targetId, depth + 1);
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`Error scanning folder ${fId}:`, err);
+      }
     }
 
-    const { files = [] } = await filesResp.json();
+    await scanFolder(folderId);
 
     // 6. Index and upsert discovered files into Supabase library_items table
     let syncedCount = 0;
-    for (const file of files) {
+    for (const file of discoveredFiles) {
       const type = file.mimeType === 'application/pdf' ? 'ebook' : 'video';
       const sizeBytes = file.size ? parseInt(file.size, 10) : 0;
       
@@ -171,7 +206,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       folderId,
-      filesDiscovered: files.length,
+      filesDiscovered: discoveredFiles.length,
       filesSynced: syncedCount
     });
   } catch (err: any) {
