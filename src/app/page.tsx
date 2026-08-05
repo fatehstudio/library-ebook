@@ -1,22 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Flame, 
   BookOpen, 
   Clock, 
   ArrowRight, 
   Play, 
-  Sparkles,
-  TrendingUp,
-  Brain,
-  Search,
-  X,
-  Star,
-  FileText,
-  Video as VideoIcon,
-  Compass,
-  Trees
+  Sparkles, 
+  TrendingUp, 
+  Brain, 
+  Search, 
+  X, 
+  Star, 
+  FileText, 
+  Video as VideoIcon, 
+  Compass, 
+  Trees,
+  Columns
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLibrary } from '@/context/LibraryContext';
@@ -118,6 +119,14 @@ export default function Home() {
   
   const [quoteIndex, setQuoteIndex] = useState(dailyIndex);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLayoutReversed, setIsLayoutReversed] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('dashboard-layout-reversed');
+    if (saved === 'true') {
+      setIsLayoutReversed(true);
+    }
+  }, []);
 
   const handleNextQuote = () => {
     let nextIdx = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
@@ -430,11 +439,27 @@ export default function Home() {
             </div>
           </section>
 
+          {/* Layout Swap Button & Header */}
+          <div className="flex justify-end">
+            <button
+              onClick={() => {
+                const nextVal = !isLayoutReversed;
+                setIsLayoutReversed(nextVal);
+                localStorage.setItem('dashboard-layout-reversed', String(nextVal));
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-custom bg-card text-muted-custom hover:text-foreground text-[10px] font-bold tracking-wide uppercase transition-all cursor-pointer hover:border-accent-gold/30 hover:shadow-sm"
+              title="Swap left and right columns"
+            >
+              <Columns className="w-3.5 h-3.5" />
+              Arrange Columns ⇄
+            </button>
+          </div>
+
           {/* Main Grid: Continue Reading & Sidebar Widgets */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {/* Left 2 Columns: Books progress */}
-            <div className="lg:col-span-2 flex flex-col gap-8">
+            <div className={`lg:col-span-2 flex flex-col gap-8 ${isLayoutReversed ? 'lg:order-2' : ''}`}>
               
               {/* Continue Reading Section */}
               <section>
@@ -533,7 +558,7 @@ export default function Home() {
             </div>
 
             {/* Right 1 Column: Widget shortcuts */}
-            <div className="flex flex-col gap-8">
+            <div className={`flex flex-col gap-8 ${isLayoutReversed ? 'lg:order-1' : ''}`}>
               
               {/* Dashboards Shortcuts Portal */}
               <section className="bg-rose-100/40 border border-rose-300/30 dark:bg-card dark:border-border-custom rounded-3xl p-6 shadow-sm">
