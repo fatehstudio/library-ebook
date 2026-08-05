@@ -4,35 +4,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FileText, Star, Edit, Trash2, Bookmark, Search, X, Sparkles, Send, Brain, MessageSquare, ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import { useLibrary } from '@/context/LibraryContext';
 
-const MOCK_NOTES = [
-  {
-    id: 'mock-1',
-    bookTitle: 'Trading in the Zone',
-    text: 'Consistency in trading is built upon the acceptance of risk. When you truly accept the risk, you will not feel any emotional discomfort or fear.',
-    note: 'Important paradigm shift. Apply this to pre-trade planning checklist.',
-    date: 'Yesterday',
-    page: 112,
-    collection: 'Trading'
-  },
-  {
-    id: 'mock-2',
-    bookTitle: 'The Productive Muslim',
-    text: 'Barakah is the attachment of divine goodness to a thing, so that if it is tiny, it increases, and if it is great, it benefits.',
-    note: 'Remember to align intentions before beginning study sessions.',
-    date: '3 days ago',
-    page: 45,
-    collection: 'Quran'
-  },
-  {
-    id: 'mock-3',
-    bookTitle: 'Atomic Habits',
-    text: 'You do not rise to the level of your goals. You fall to the level of your systems.',
-    note: 'Focus on setting up automated syncs and dashboard metrics so tracking is automatic.',
-    date: '1 week ago',
-    page: 28,
-    collection: 'Self Development'
-  }
-];
 
 const getHighlighterColors = (collection: string) => {
   const normalized = collection.toLowerCase().trim();
@@ -298,7 +269,7 @@ export default function Notes() {
     collection: h.collection || 'Self Development'
   })) : [];
 
-  const allNotes = [...realNotesMapped, ...MOCK_NOTES];
+  const allNotes = realNotesMapped;
 
   // Filter notes based on category selection AND keyword search query
   const filteredNotes = allNotes.filter(note => {
