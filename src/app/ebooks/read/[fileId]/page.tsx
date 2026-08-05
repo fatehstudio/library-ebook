@@ -161,7 +161,7 @@ export default function ReadEbook({ params }: { params: Promise<{ fileId: string
         <div className="flex-1 rounded-3xl overflow-hidden border border-border-custom bg-card/30 relative">
           {streamUrl ? (
             <iframe 
-              src={`${streamUrl}#page=${iframePage > 0 ? iframePage : 1}&toolbar=0&navpanes=0`}
+              src={`${streamUrl}#page=${iframePage > 0 ? iframePage : 1}`}
               className="w-full h-full"
               title={activeBook.title}
             />
