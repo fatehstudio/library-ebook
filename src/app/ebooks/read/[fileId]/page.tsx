@@ -12,7 +12,9 @@ import {
   BookMarked,
   Sparkles,
   ChevronRight,
-  X
+  X,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { useLibrary } from '@/context/LibraryContext';
 
@@ -32,6 +34,7 @@ export default function ReadEbook({ params }: { params: Promise<{ fileId: string
   // Bookmarks & local iframe page navigation tracking
   const [bookmarks, setBookmarks] = useState<number[]>([]);
   const [iframePage, setIframePage] = useState<number>(0);
+  const [isMaximized, setIsMaximized] = useState<boolean>(false);
 
   useEffect(() => {
     const book = books.find(b => b.id === fileId);
@@ -151,9 +154,23 @@ export default function ReadEbook({ params }: { params: Promise<{ fileId: string
               <p className="text-[10px] text-muted-custom">by {activeBook.author}</p>
             </div>
           </div>
-          
-          <div className="text-[10px] font-bold text-accent-gold bg-accent-gold/10 px-2.5 py-1 rounded-full border border-accent-gold/25 uppercase tracking-wider">
-            {activeBook.progress}% Read
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsMaximized(!isMaximized)}
+              className="p-2 border border-border-custom/50 rounded-xl bg-card hover:bg-foreground/5 text-muted-custom hover:text-foreground transition-all flex items-center justify-center cursor-pointer shrink-0"
+              title={isMaximized ? "Show Sidebar" : "Hide Sidebar (Full Page)"}
+            >
+              {isMaximized ? (
+                <Minimize2 className="w-4 h-4 text-accent-gold" />
+              ) : (
+                <Maximize2 className="w-4 h-4 text-muted-custom" />
+              )}
+            </button>
+
+            <div className="text-[10px] font-bold text-accent-gold bg-accent-gold/10 px-2.5 py-1 rounded-full border border-accent-gold/25 uppercase tracking-wider">
+              {activeBook.progress}% Read
+            </div>
           </div>
         </header>
 
@@ -176,7 +193,9 @@ export default function ReadEbook({ params }: { params: Promise<{ fileId: string
       </div>
 
       {/* Right side: Kindle-style Reading Sidebar Panel */}
-      <aside className="w-full md:w-96 h-1/3 md:h-full border-t md:border-t-0 md:border-l border-border-custom bg-card/30 backdrop-blur-md flex flex-col shrink-0 overflow-y-auto">
+      <aside className={`w-full md:w-96 h-1/3 md:h-full border-t md:border-t-0 md:border-l border-border-custom bg-card/30 backdrop-blur-md flex-col shrink-0 overflow-y-auto ${
+        isMaximized ? 'hidden' : 'flex'
+      }`}>
         <div className="p-5 flex flex-col gap-6">
           
           {/* Section 1: Progress Tracker Form */}
