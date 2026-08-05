@@ -1011,13 +1011,13 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         `)
         .textSearch('fts', query, {
           type: 'websearch',
-          config: 'english'
+          config: 'simple'
         })
         .limit(15);
 
       if (error) {
         console.error('FTS query failed:', error);
-        return [];
+        throw new Error(error.message || 'Database query error');
       }
 
       if (!data) return [];
