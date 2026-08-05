@@ -11,7 +11,8 @@ import {
   FileText, 
   BookMarked,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { useLibrary } from '@/context/LibraryContext';
 
@@ -28,13 +29,29 @@ export default function ReadEbook({ params }: { params: Promise<{ fileId: string
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [noteSuccess, setNoteSuccess] = useState<boolean>(false);
 
+  // Bookmarks & local iframe page navigation tracking
+  const [bookmarks, setBookmarks] = useState<number[]>([]);
+  const [iframePage, setIframePage] = useState<number>(0);
+
   useEffect(() => {
     const book = books.find(b => b.id === fileId);
     if (book) {
       setActiveBook(book);
       setCurrentPageInput(book.currentPage.toString());
+
+      // Load saved page bookmarks
+      const saved = localStorage.getItem(`bookmarks-${fileId}`);
+      if (saved) {
+        try { setBookmarks(JSON.parse(saved)); } catch (e) { setBookmarks([]); }
+      }
     }
   }, [books, fileId]);
+
+  useEffect(() => {
+    if (activeBook && iframePage === 0) {
+      setIframePage(activeBook.currentPage);
+    }
+  }, [activeBook]);
 
   if (!activeBook) {
     return (
@@ -63,8 +80,37 @@ export default function ReadEbook({ params }: { params: Promise<{ fileId: string
       return;
     }
     await updateBookProgress(activeBook.id, pageNum);
+    setIframePage(pageNum);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2000);
+  };
+
+  const handleAddBookmark = () => {
+    const pageNum = parseInt(currentPageInput, 10);
+    if (isNaN(pageNum) || pageNum <= 0 || pageNum > activeBook.totalPages) {
+      alert(`Please enter a valid page number between 1 and ${activeBook.totalPages} to bookmark.`);
+      return;
+    }
+    if (bookmarks.includes(pageNum)) {
+      alert('This page is already bookmarked.');
+      return;
+    }
+    const updated = [...bookmarks, pageNum].sort((a, b) => a - b);
+    setBookmarks(updated);
+    localStorage.setItem(`bookmarks-${fileId}`, JSON.stringify(updated));
+  };
+
+  const handleRemoveBookmark = (pageNum: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = bookmarks.filter(p => p !== pageNum);
+    setBookmarks(updated);
+    localStorage.setItem(`bookmarks-${fileId}`, JSON.stringify(updated));
+  };
+
+  const handleJumpToBookmark = async (pageNum: number) => {
+    setCurrentPageInput(pageNum.toString());
+    setIframePage(pageNum);
+    await updateBookProgress(activeBook.id, pageNum);
   };
 
   const handleAddNote = async (e: React.FormEvent) => {
@@ -115,7 +161,7 @@ export default function ReadEbook({ params }: { params: Promise<{ fileId: string
         <div className="flex-1 rounded-3xl overflow-hidden border border-border-custom bg-card/30 relative">
           {streamUrl ? (
             <iframe 
-              src={`${streamUrl}#toolbar=0&navpanes=0`}
+              src={`${streamUrl}#page=${iframePage > 0 ? iframePage : 1}&toolbar=0&navpanes=0`}
               className="w-full h-full"
               title={activeBook.title}
             />
@@ -174,21 +220,64 @@ export default function ReadEbook({ params }: { params: Promise<{ fileId: string
                 <span className="text-[10px] font-bold text-accent-gold">{activeBook.progress}%</span>
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-2 bg-accent-gold text-background rounded-xl text-xs font-bold border border-accent-gold hover:opacity-90 transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-1"
-              >
-                {saveSuccess ? (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Progress Saved!
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-3.5 h-3.5" /> Update Progress
-                  </>
-                )}
-              </button>
+              <div className="flex gap-2 mt-1">
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-accent-gold text-background rounded-xl text-xs font-bold border border-accent-gold hover:opacity-90 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  {saveSuccess ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Progress Saved!
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" /> Update Progress
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAddBookmark}
+                  className="px-3 py-2 border border-border-custom bg-card hover:bg-foreground/5 text-muted-custom hover:text-foreground rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  title="Bookmark this page"
+                >
+                  <BookMarked className="w-3.5 h-3.5" /> Bookmark
+                </button>
+              </div>
             </form>
+
+            {/* Bookmarks List */}
+            {bookmarks.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-border-custom/50">
+                <span className="text-[10px] uppercase font-bold text-muted-custom tracking-wider block mb-2">
+                  Bookmarks ({bookmarks.length})
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {bookmarks.map((page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => handleJumpToBookmark(page)}
+                      className={`pl-3 pr-1.5 py-1 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 transition-all cursor-pointer ${
+                        iframePage === page
+                          ? 'bg-accent-gold border-accent-gold text-background'
+                          : 'bg-background border-border-custom text-muted-custom hover:border-foreground/20 hover:text-foreground'
+                      }`}
+                    >
+                      <span>Page {page}</span>
+                      <span
+                        onClick={(e) => handleRemoveBookmark(page, e)}
+                        className="p-0.5 rounded-full hover:bg-foreground/10 text-muted-custom hover:text-red-500 transition-colors shrink-0"
+                        title="Remove bookmark"
+                      >
+                        <X className="w-3 h-3" />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Section 2: Highlighter Clippings & Thought Pad Form */}
