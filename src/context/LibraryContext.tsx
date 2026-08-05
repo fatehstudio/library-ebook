@@ -44,6 +44,7 @@ export interface Video {
   description: string;
   dateAdded: string;
   googleDriveFileId?: string;
+  thumbnailUrl?: string | null;
 }
 
 export interface Highlight {
@@ -92,6 +93,7 @@ interface LibraryContextType {
   deleteHighlight: (id: string) => Promise<void>;
   updateItemCollection: (itemId: string, collectionName: string) => Promise<void>;
   updateBookCover: (id: string, url: string) => Promise<void>;
+  updateVideoMetadata: (id: string, title: string, speaker: string, thumbnailUrl: string) => Promise<void>;
   searchPageContents: (query: string) => Promise<Array<{
     id: string;
     bookId: string;
@@ -109,192 +111,11 @@ const DEFAULT_COLLECTIONS: Collection[] = [
   { name: 'Self Development', slug: 'self-development', color: 'border-indigo-500/20 bg-indigo-500/5 text-indigo-400', count: 2 },
 ];
 
-const DEFAULT_BOOKS: Book[] = [
-  {
-    id: '1',
-    title: 'Trading in the Zone',
-    author: 'Mark Douglas',
-    progress: 68,
-    currentPage: 152,
-    totalPages: 224,
-    status: 'reading',
-    rating: 5,
-    isFavorite: true,
-    collection: 'Trading',
-    coverColor: 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400',
-    description: 'Douglas uncovers the underlying reasons for lack of consistency and helps traders overcome the mental habits that prevent them from winning.',
-    dateAdded: '2026-07-15'
-  },
-  {
-    id: '2',
-    title: 'The Productive Muslim',
-    author: 'Mohammed Faris',
-    progress: 42,
-    currentPage: 96,
-    totalPages: 230,
-    status: 'reading',
-    rating: 4,
-    isFavorite: true,
-    collection: 'Quran',
-    coverColor: 'bg-amber-950/40 border-amber-500/20 text-amber-400',
-    description: 'This book combines Islamic spiritual principles with modern productivity techniques to help you live a balanced, purposeful, and productive life.',
-    dateAdded: '2026-07-28'
-  },
-  {
-    id: '3',
-    title: 'Atomic Habits',
-    author: 'James Clear',
-    progress: 100,
-    currentPage: 320,
-    totalPages: 320,
-    status: 'completed',
-    rating: 5,
-    isFavorite: false,
-    collection: 'Self Development',
-    coverColor: 'bg-indigo-950/40 border-indigo-500/20 text-indigo-400',
-    description: 'Tiny Changes, Remarkable Results. Clear offers a proven framework for improving—every day. Learn how to form good habits, break bad ones, and master the tiny behaviors that lead to remarkable results.',
-    dateAdded: '2026-06-10'
-  },
-  {
-    id: '4',
-    title: 'The Quran (English translation)',
-    author: 'M.A.S. Abdel Haleem',
-    progress: 0,
-    currentPage: 0,
-    totalPages: 480,
-    status: 'not_started',
-    rating: 0,
-    isFavorite: true,
-    collection: 'Quran',
-    coverColor: 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400',
-    description: 'Haleems translation is written in modern English, making it highly accessible and readable. It includes Surah Al-Baqarah, Surah Al-Mulk and other key chapters with contextual notes.',
-    dateAdded: '2026-08-01'
-  },
-  {
-    id: '5',
-    title: 'Tafsir Ibn Kathir (Surah Al-Baqarah)',
-    author: 'Imam Ibn Kathir',
-    progress: 15,
-    currentPage: 35,
-    totalPages: 240,
-    status: 'reading',
-    rating: 5,
-    isFavorite: true,
-    collection: 'Quran',
-    coverColor: 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400',
-    description: 'A comprehensive commentary of Surah Al-Baqarah (The Cow), detailing the meanings, history, lessons, and rulings of the longest surah in the Quran.',
-    dateAdded: '2026-07-29'
-  },
-  {
-    id: '6',
-    title: 'Introduction to Machine Learning',
-    author: 'Alex Smola',
-    progress: 0,
-    currentPage: 0,
-    totalPages: 410,
-    status: 'not_started',
-    rating: 0,
-    isFavorite: false,
-    collection: 'AI',
-    coverColor: 'bg-purple-950/40 border-purple-500/20 text-purple-400',
-    description: 'A comprehensive textbook covering mathematical foundations of machine learning, classification, clustering, regression, and optimization.',
-    dateAdded: '2026-07-29'
-  }
-];
+const DEFAULT_BOOKS: Book[] = [];
 
-const DEFAULT_VIDEOS: Video[] = [
-  {
-    id: '1',
-    title: 'Fateh Task Workflow Tutorial',
-    author: 'Fateh System Guide',
-    duration: '14:20',
-    progress: 80,
-    currentTime: 11.5,
-    totalDuration: 14.33,
-    status: 'watching',
-    rating: 5,
-    isFavorite: true,
-    collection: 'Fateh',
-    thumbnailColor: 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400',
-    description: 'A step-by-step video guide explaining the Fateh dashboard, showing how daily tasks are mapped, logged, and synchronized with your learning targets.',
-    dateAdded: '2026-07-28'
-  },
-  {
-    id: '2',
-    title: 'Trading Psychology Mastery',
-    author: 'Mark Douglas Masterclass',
-    duration: '45:10',
-    progress: 15,
-    currentTime: 6.75,
-    totalDuration: 45.16,
-    status: 'watching',
-    rating: 4,
-    isFavorite: true,
-    collection: 'Trading',
-    thumbnailColor: 'bg-blue-950/40 border-blue-500/20 text-blue-400',
-    description: 'Focuses on the mental barriers traders face, explaining how fear, greed, and hope corrupt trading execution, and how to develop a probability-based mindset.',
-    dateAdded: '2026-07-30'
-  },
-  {
-    id: '3',
-    title: 'Surah Al-Baqarah Tafsir Series (Part 1)',
-    author: 'Ustadh Nouman Ali Khan',
-    duration: '55:30',
-    progress: 35,
-    currentTime: 19.42,
-    totalDuration: 55.5,
-    status: 'watching',
-    rating: 5,
-    isFavorite: true,
-    collection: 'Quran',
-    thumbnailColor: 'bg-amber-950/40 border-amber-500/20 text-amber-400',
-    description: 'Detailed analysis and word-for-word explanation of the opening verses of Surah Al-Baqarah, focusing on self-guidance and the classification of believers.',
-    dateAdded: '2026-08-02'
-  },
-  {
-    id: '4',
-    title: 'Quran Tafsir Surah Al-Mulk',
-    author: 'Ustadh Nouman Ali Khan',
-    duration: '35:40',
-    progress: 100,
-    currentTime: 35.66,
-    totalDuration: 35.66,
-    status: 'completed',
-    rating: 5,
-    isFavorite: false,
-    collection: 'Quran',
-    thumbnailColor: 'bg-amber-950/40 border-amber-500/20 text-amber-400',
-    description: 'An in-depth linguistic and contextual commentary on Surah Al-Mulk, exploring its central themes of sovereignty, creation, reflection, and human responsibility.',
-    dateAdded: '2026-07-20'
-  }
-];
+const DEFAULT_VIDEOS: Video[] = [];
 
-const DEFAULT_HIGHLIGHTS: Highlight[] = [
-  {
-    id: '1',
-    text: "The Prophet (ﷺ) said: 'Do not make your houses like graves. Verily, Satan flees from the house in which Surah Al-Baqarah is recited.'",
-    source: "Sahih Muslim, virtues of Surah Al-Baqarah",
-    author: "Prophet Muhammad (ﷺ)",
-    collection: "Quran",
-    dateAdded: "2026-07-20"
-  },
-  {
-    id: '2',
-    text: "Consistency in trading is built upon the complete acceptance of risk, which means trading without fear, hesitation, or regret.",
-    source: "Trading in the Zone (Page 112)",
-    author: "Mark Douglas",
-    collection: "Trading",
-    dateAdded: "2026-07-16"
-  },
-  {
-    id: '3',
-    text: "A highlight about the virtues of Ayat al-Kursi (Surah Al-Baqarah, verse 255): It is the greatest verse in the Book of Allah.",
-    source: "Tafsir Ibn Kathir",
-    author: "Imam Ibn Kathir",
-    collection: "Quran",
-    dateAdded: "2026-07-30"
-  }
-];
+const DEFAULT_HIGHLIGHTS: Highlight[] = [];
 
 const DEFAULT_DASHBOARDS: Dashboard[] = [
   {
@@ -473,7 +294,8 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
               thumbnailColor: 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400',
               description: item.description || '',
               dateAdded: new Date(item.created_at).toISOString().split('T')[0],
-              googleDriveFileId: item.google_drive_file_id
+              googleDriveFileId: item.google_drive_file_id,
+              thumbnailUrl: item.cover_image_url || null
             });
           }
         });
@@ -841,8 +663,19 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     try {
       const resp = await fetch(`/api/sync?userId=${userId}`, { method: 'POST' });
       if (!resp.ok) {
-        const err = await resp.json();
-        alert(`Google Drive Sync Failed: ${err.error}`);
+        const text = await resp.text();
+        let errMsg = 'Unknown error';
+        try {
+          const parsed = JSON.parse(text);
+          errMsg = parsed.error || errMsg;
+        } catch {
+          if (text.includes('504') || text.includes('timeout') || text.includes('Timeout') || text.includes('Gate-way')) {
+            errMsg = 'Execution timeout on Vercel Hobby tier (took longer than 10 seconds). Try clicking Sync again to resume next file!';
+          } else {
+            errMsg = text.substring(0, 120);
+          }
+        }
+        alert(`Google Drive Sync Failed: ${errMsg}`);
         return;
       }
       const data = await resp.json();
@@ -1048,6 +881,29 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateVideoMetadata = async (id: string, title: string, speaker: string, thumbnailUrl: string) => {
+    const updatedVids = videos.map(v => v.id === id ? { ...v, title, author: speaker, thumbnailUrl } : v);
+    setVideos(updatedVids);
+    localStorage.setItem('kb-videos', JSON.stringify(updatedVids));
+
+    if (isCloudMode) {
+      try {
+        await supabase
+          .from('library_items')
+          .update({
+            title,
+            author: speaker || null,
+            cover_image_url: thumbnailUrl || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('id', id);
+      } catch (err) {
+        console.error('Failed to update video metadata in DB:', err);
+      }
+    }
+  };
+
   return (
     <LibraryContext.Provider value={{ 
       collections, 
@@ -1075,6 +931,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       deleteHighlight,
       updateItemCollection,
       updateBookCover,
+      updateVideoMetadata,
       searchPageContents
     }}>
       {children}
