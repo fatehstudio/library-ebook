@@ -76,6 +76,7 @@ function EbooksContent() {
   const [searchInsidePages, setSearchInsidePages] = useState(false);
   const [pageSearchResults, setPageSearchResults] = useState<any[]>([]);
   const [isSearchingPages, setIsSearchingPages] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // Bulk select & categorize states
   const [isBulkMode, setIsBulkMode] = useState(false);
@@ -125,21 +126,31 @@ function EbooksContent() {
     }
   }, [searchParams, collections]);
 
-  // Trigger page content full-text search with debounce
-  useEffect(() => {
-    const triggerPageSearch = async () => {
-      if (searchInsidePages && search.trim().length > 2) {
-        setIsSearchingPages(true);
+  const performPageSearch = async () => {
+    if (search.trim().length > 2) {
+      setIsSearchingPages(true);
+      setSearchError(null);
+      try {
         const res = await searchPageContents(search.trim());
         setPageSearchResults(res);
+      } catch (err: any) {
+        console.error('Page search failed:', err);
+        setSearchError('Connection error or slow internet. Please check your network and click retry.');
+      } finally {
         setIsSearchingPages(false);
-      } else {
-        setPageSearchResults([]);
       }
-    };
+    } else {
+      setPageSearchResults([]);
+      setSearchError(null);
+    }
+  };
 
+  // Trigger page content full-text search with debounce
+  useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      triggerPageSearch();
+      if (searchInsidePages) {
+        performPageSearch();
+      }
     }, 400);
 
     return () => clearTimeout(delayDebounceFn);
@@ -303,6 +314,18 @@ function EbooksContent() {
             <div className="flex items-center gap-2 py-4 text-xs text-muted-custom font-semibold">
               <span className="w-4 h-4 border-2 border-accent-gold border-t-transparent rounded-full animate-spin animate-duration-1000" />
               Searching inside ebook PDF pages...
+            </div>
+          ) : searchError ? (
+            <div className="flex flex-col gap-3 py-3 items-start animate-fade-in">
+              <div className="p-3.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-xs font-semibold leading-relaxed flex items-center gap-2 w-full">
+                ⚠️ {searchError}
+              </div>
+              <button
+                onClick={performPageSearch}
+                className="px-4 py-2 bg-accent-gold text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all cursor-pointer shadow-sm"
+              >
+                Retry Search 🔄
+              </button>
             </div>
           ) : pageSearchResults.length === 0 ? (
             <p className="text-xs text-muted-custom py-2">No page matches found for "{search}". Try another keyword.</p>
