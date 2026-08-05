@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   Search, 
   Star, 
@@ -11,7 +12,8 @@ import {
   HelpCircle,
   X,
   Clock,
-  BookOpen
+  BookOpen,
+  Sparkles
 } from 'lucide-react';
 import { useLibrary } from '@/context/LibraryContext';
 
@@ -61,7 +63,7 @@ const getCategoryColors = (collection: string) => {
 function EbooksContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { books, collections, updateBookProgress, updateBookRating, toggleBookFavorite, updateItemCollection, updateBookCover } = useLibrary();
+  const { books, collections, updateBookProgress, updateBookRating, toggleBookFavorite, updateItemCollection, updateBookCover, searchPageContents } = useLibrary();
   
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -69,6 +71,11 @@ function EbooksContent() {
   const [selectedBook, setSelectedBook] = useState<{ id: string } | null>(null);
   const [pageInput, setPageInput] = useState('');
   const [coverInput, setCoverInput] = useState('');
+
+  // Page-level full-text search states
+  const [searchInsidePages, setSearchInsidePages] = useState(false);
+  const [pageSearchResults, setPageSearchResults] = useState<any[]>([]);
+  const [isSearchingPages, setIsSearchingPages] = useState(false);
 
   // Bulk select & categorize states
   const [isBulkMode, setIsBulkMode] = useState(false);
@@ -117,6 +124,26 @@ function EbooksContent() {
       setSelectedCollection(colParam);
     }
   }, [searchParams, collections]);
+
+  // Trigger page content full-text search with debounce
+  useEffect(() => {
+    const triggerPageSearch = async () => {
+      if (searchInsidePages && search.trim().length > 2) {
+        setIsSearchingPages(true);
+        const res = await searchPageContents(search.trim());
+        setPageSearchResults(res);
+        setIsSearchingPages(false);
+      } else {
+        setPageSearchResults([]);
+      }
+    };
+
+    const delayDebounceFn = setTimeout(() => {
+      triggerPageSearch();
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, searchInsidePages]);
 
   // Filter Logic
   const filteredBooks = books.filter(book => {
@@ -171,15 +198,31 @@ function EbooksContent() {
       </header>
 
       {/* Search Input */}
-      <div className="relative mb-6">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-custom" />
-        <input
-          type="text"
-          placeholder="Search by title, author, or keywords..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-11 pr-4 py-3 bg-card border border-border-custom rounded-2xl text-sm focus:outline-none focus:border-accent-gold/50 focus:ring-1 focus:ring-accent-gold/20 transition-all text-foreground"
-        />
+      <div className="flex flex-col gap-2 mb-6">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-custom" />
+          <input
+            type="text"
+            placeholder="Search by title, author, or keywords..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-card border border-border-custom rounded-2xl text-sm focus:outline-none focus:border-accent-gold/50 focus:ring-1 focus:ring-accent-gold/20 transition-all text-foreground"
+          />
+        </div>
+        
+        {/* Toggle search inside pages */}
+        <div className="flex items-center gap-2 px-1">
+          <input 
+            type="checkbox"
+            id="searchPages"
+            checked={searchInsidePages}
+            onChange={(e) => setSearchInsidePages(e.target.checked)}
+            className="w-3.5 h-3.5 accent-accent-gold cursor-pointer"
+          />
+          <label htmlFor="searchPages" className="text-xs text-muted-custom hover:text-foreground transition-colors cursor-pointer select-none">
+            Search inside book pages (Full-text content search)
+          </label>
+        </div>
       </div>
 
       {/* Dual Filter Rows */}
@@ -247,6 +290,55 @@ function EbooksContent() {
         </div>
         
       </div>
+
+      {/* Page Content Search Results */}
+      {searchInsidePages && search.trim().length > 2 && (
+        <div className="mb-8 border border-border-custom bg-card/60 backdrop-blur-md rounded-3xl p-6 shadow-md animate-fade-in">
+          <h3 className="font-serif text-lg font-bold mb-4 text-header-custom flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-accent-gold" />
+            Page Content Matches ({pageSearchResults.length})
+          </h3>
+          
+          {isSearchingPages ? (
+            <div className="flex items-center gap-2 py-4 text-xs text-muted-custom font-semibold">
+              <span className="w-4 h-4 border-2 border-accent-gold border-t-transparent rounded-full animate-spin animate-duration-1000" />
+              Searching inside ebook PDF pages...
+            </div>
+          ) : pageSearchResults.length === 0 ? (
+            <p className="text-xs text-muted-custom py-2">No page matches found for "{search}". Try another keyword.</p>
+          ) : (
+            <div className="flex flex-col gap-4 max-h-96 overflow-y-auto pr-1">
+              {pageSearchResults.map((result) => (
+                <div 
+                  key={result.id}
+                  className="p-4 bg-background border border-border-custom/50 rounded-2xl flex items-center justify-between gap-4 hover:border-accent-gold/30 transition-all"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold bg-accent-gold/10 text-accent-gold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                        {result.bookTitle}
+                      </span>
+                      <span className="text-[10px] font-mono bg-foreground/5 text-muted-custom px-2 py-0.5 rounded-full font-bold">
+                        Page {result.pageNumber}
+                      </span>
+                    </div>
+                    <p className="text-xs text-foreground/80 italic line-clamp-2 leading-relaxed bg-foreground/[0.02] p-2 rounded-xl border border-foreground/[0.04]">
+                      {result.contentSnippet}
+                    </p>
+                  </div>
+                  
+                  <Link
+                    href={`/ebooks/read/${result.bookId}?page=${result.pageNumber}`}
+                    className="px-4 py-2 bg-accent-gold text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all shrink-0 shadow-sm"
+                  >
+                    Open Page
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Book Grid */}
       {filteredBooks.length === 0 ? (
