@@ -25,6 +25,7 @@ export interface Book {
   description: string;
   dateAdded: string;
   googleDriveFileId?: string;
+  coverImageUrl?: string | null;
 }
 
 export interface Video {
@@ -88,6 +89,7 @@ interface LibraryContextType {
   syncGoogleDrive: () => Promise<void>;
   addHighlight: (libraryItemId: string, text: string, note?: string, color?: string) => Promise<void>;
   updateItemCollection: (itemId: string, collectionName: string) => Promise<void>;
+  updateBookCover: (id: string, url: string) => Promise<void>;
 }
 
 const DEFAULT_COLLECTIONS: Collection[] = [
@@ -443,7 +445,8 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
               coverColor: 'bg-indigo-950/40 border-indigo-500/20 text-indigo-400',
               description: item.description || '',
               dateAdded: new Date(item.created_at).toISOString().split('T')[0],
-              googleDriveFileId: item.google_drive_file_id
+              googleDriveFileId: item.google_drive_file_id,
+              coverImageUrl: item.cover_image_url || null
             });
           } else {
             mappedVids.push({
@@ -920,6 +923,27 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateBookCover = async (id: string, url: string) => {
+    const updatedBooks = books.map(b => b.id === id ? { ...b, coverImageUrl: url } : b);
+    setBooks(updatedBooks);
+    localStorage.setItem('kb-books', JSON.stringify(updatedBooks));
+
+    if (isCloudMode) {
+      try {
+        await supabase
+          .from('library_items')
+          .update({
+            cover_image_url: url || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('id', id);
+      } catch (err) {
+        console.error('Failed to update book cover in DB:', err);
+      }
+    }
+  };
+
   return (
     <LibraryContext.Provider value={{ 
       collections, 
@@ -943,7 +967,8 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       deleteDashboard,
       syncGoogleDrive,
       addHighlight,
-      updateItemCollection
+      updateItemCollection,
+      updateBookCover
     }}>
       {children}
     </LibraryContext.Provider>
