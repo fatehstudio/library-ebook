@@ -212,8 +212,8 @@ export async function POST(request: NextRequest) {
       if (!upsertErr && upsertData) {
         syncedCount++;
 
-        // If it is a PDF, run the page indexing parser (limited to max 1 new ebook per sync call to prevent timeouts)
-        if (type === 'ebook' && indexedEbooksCount < 1) {
+        // If it is a PDF, run the page indexing parser (limited to max 5 new ebooks per sync call to prevent timeouts)
+        if (type === 'ebook' && indexedEbooksCount < 5) {
           try {
             // Check if pages are already indexed for this book
             const { count } = await supabaseAdmin
@@ -221,8 +221,8 @@ export async function POST(request: NextRequest) {
               .select('*', { count: 'exact', head: true })
               .eq('library_item_id', upsertData.id);
 
-            // Skip files larger than 8MB to prevent serverless function memory limit or timeout issues
-            const isTooLarge = sizeBytes > 8 * 1024 * 1024;
+            // Skip files larger than 20MB to prevent memory limit or timeout issues
+            const isTooLarge = sizeBytes > 20 * 1024 * 1024;
 
             if (count === 0 && !isTooLarge) {
               console.log(`Indexing pages for new ebook: ${file.name}`);
@@ -235,39 +235,18 @@ export async function POST(request: NextRequest) {
 
               if (fileResp.ok) {
                 // @ts-ignore
-                const pdfParse = require('pdf-parse');
+                const pdfLib = require('pdf-parse');
                 const arrayBuffer = await fileResp.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
                 
-                const pages: Array<{ library_item_id: string, page_number: number, content: string }> = [];
-
-                // Custom page render callback to extract page-by-page text
-                const render_page = (pageData: any) => {
-                  // Limit indexing to first 100 pages per book to prevent timeouts on Vercel
-                  if (pageData.pageIndex >= 100) {
-                    return Promise.resolve('');
-                  }
-                  return pageData.getTextContent()
-                    .then((textContent: any) => {
-                      let lastY, text = '';
-                      for (const item of textContent.items) {
-                        if (lastY === item.transform[5] || !lastY) {
-                          text += item.str + ' ';
-                        } else {
-                          text += '\n' + item.str + ' ';
-                        }
-                        lastY = item.transform[5];
-                      }
-                      pages.push({
-                        library_item_id: upsertData.id,
-                        page_number: pageData.pageIndex + 1,
-                        content: text.trim()
-                      });
-                      return text;
-                    });
-                };
-
-                await pdfParse(buffer, { pagerender: render_page });
+                const parser = new pdfLib.PDFParse({ data: new Uint8Array(buffer) });
+                const result = await parser.getText({ first: 100 });
+                
+                const pages = result.pages.map((p: any) => ({
+                  library_item_id: upsertData.id,
+                  page_number: p.num,
+                  content: p.text.trim()
+                }));
 
                 if (pages.length > 0) {
                   // Insert all pages in bulk
