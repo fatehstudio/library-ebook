@@ -237,6 +237,20 @@ export default function Home() {
               <p className="text-xs font-bold mt-1 text-foreground">30 / 45 min</p>
             </div>
           </div>
+
+          {/* Layout Swap Button */}
+          <button
+            onClick={() => {
+              const nextVal = !isLayoutReversed;
+              setIsLayoutReversed(nextVal);
+              localStorage.setItem('dashboard-layout-reversed', String(nextVal));
+            }}
+            className="flex items-center gap-1.5 px-4 py-3.5 bg-card border border-border-custom rounded-2xl shadow-sm text-muted-custom hover:text-foreground text-xs font-bold transition-all cursor-pointer hover:border-accent-gold/45"
+            title="Swap columns layout (Left/Right)"
+          >
+            <Columns className="w-4 h-4 text-accent-gold shrink-0" />
+            <span className="hidden sm:inline text-[10px] uppercase font-bold tracking-wider leading-none">Swap Layout</span>
+          </button>
         </div>
       </header>
 
@@ -438,22 +452,6 @@ export default function Home() {
               </p>
             </div>
           </section>
-
-          {/* Layout Swap Button & Header */}
-          <div className="flex justify-end">
-            <button
-              onClick={() => {
-                const nextVal = !isLayoutReversed;
-                setIsLayoutReversed(nextVal);
-                localStorage.setItem('dashboard-layout-reversed', String(nextVal));
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-custom bg-card text-muted-custom hover:text-foreground text-[10px] font-bold tracking-wide uppercase transition-all cursor-pointer hover:border-accent-gold/30 hover:shadow-sm"
-              title="Swap left and right columns"
-            >
-              <Columns className="w-3.5 h-3.5" />
-              Arrange Columns ⇄
-            </button>
-          </div>
 
           {/* Main Grid: Continue Reading & Sidebar Widgets */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
