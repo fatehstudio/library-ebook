@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseClient';
 import { decryptToken } from '@/lib/encryption';
-if (typeof global !== 'undefined' && !(global as any).DOMMatrix) {
-  (global as any).DOMMatrix = class DOMMatrix {};
+if (typeof globalThis !== 'undefined') {
+  const g = globalThis as any;
+  if (!g.DOMMatrix) g.DOMMatrix = class DOMMatrix {};
+  if (!g.ImageData) g.ImageData = class ImageData {};
+  if (!g.Path2D) g.Path2D = class Path2D {};
+  if (!g.Canvas) g.Canvas = class Canvas {};
+  if (!g.Image) g.Image = class Image {};
 }
 
 
@@ -207,8 +212,8 @@ export async function POST(request: NextRequest) {
       if (!upsertErr && upsertData) {
         syncedCount++;
 
-        // If it is a PDF, run the page indexing parser (limited to max 2 new ebooks per sync call to prevent timeouts)
-        if (type === 'ebook' && indexedEbooksCount < 2) {
+        // If it is a PDF, run the page indexing parser (limited to max 1 new ebook per sync call to prevent timeouts)
+        if (type === 'ebook' && indexedEbooksCount < 1) {
           try {
             // Check if pages are already indexed for this book
             const { count } = await supabaseAdmin
@@ -216,7 +221,10 @@ export async function POST(request: NextRequest) {
               .select('*', { count: 'exact', head: true })
               .eq('library_item_id', upsertData.id);
 
-            if (count === 0) {
+            // Skip files larger than 8MB to prevent serverless function memory limit or timeout issues
+            const isTooLarge = sizeBytes > 8 * 1024 * 1024;
+
+            if (count === 0 && !isTooLarge) {
               console.log(`Indexing pages for new ebook: ${file.name}`);
               
               // Download PDF from Google Drive API
@@ -235,6 +243,10 @@ export async function POST(request: NextRequest) {
 
                 // Custom page render callback to extract page-by-page text
                 const render_page = (pageData: any) => {
+                  // Limit indexing to first 100 pages per book to prevent timeouts on Vercel
+                  if (pageData.pageIndex >= 100) {
+                    return Promise.resolve('');
+                  }
                   return pageData.getTextContent()
                     .then((textContent: any) => {
                       let lastY, text = '';
