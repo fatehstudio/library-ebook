@@ -69,7 +69,37 @@ function EbooksContent() {
   const [selectedBook, setSelectedBook] = useState<{ id: string } | null>(null);
   const [pageInput, setPageInput] = useState('');
 
+  // Bulk select & categorize states
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [selectedBookIds, setSelectedBookIds] = useState<string[]>([]);
+  const [bulkCategory, setBulkCategory] = useState('');
+
   const activeBook = books.find(b => b.id === selectedBook?.id) || null;
+
+  const handleCardClick = (book: any) => {
+    if (isBulkMode) {
+      if (selectedBookIds.includes(book.id)) {
+        setSelectedBookIds(selectedBookIds.filter(id => id !== book.id));
+      } else {
+        setSelectedBookIds([...selectedBookIds, book.id]);
+      }
+    } else {
+      setSelectedBook({ id: book.id });
+    }
+  };
+
+  const handleBulkCategorize = async () => {
+    if (!bulkCategory || selectedBookIds.length === 0) return;
+    
+    if (confirm(`Are you sure you want to move ${selectedBookIds.length} books to "${bulkCategory}"?`)) {
+      for (const id of selectedBookIds) {
+        await updateItemCollection(id, bulkCategory);
+      }
+      setSelectedBookIds([]);
+      setIsBulkMode(false);
+      setBulkCategory('');
+    }
+  };
 
   // Sync details drawer input with active book page
   useEffect(() => {
@@ -114,13 +144,28 @@ function EbooksContent() {
 
   return (
     <div className="flex-1 p-6 md:p-10 max-w-5xl mx-auto w-full relative">
-      <header className="mb-8">
-        <h1 className="text-sm font-medium text-muted-custom uppercase tracking-widest mb-1">
-          Ebooks Repository
-        </h1>
-        <p className="font-handwritten text-4xl font-bold tracking-tight text-header-custom">
-          Library
-        </p>
+      <header className="mb-8 flex items-end justify-between">
+        <div>
+          <h1 className="text-sm font-medium text-muted-custom uppercase tracking-widest mb-1">
+            Ebooks Repository
+          </h1>
+          <p className="font-handwritten text-4xl font-bold tracking-tight text-header-custom">
+            Library
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setIsBulkMode(!isBulkMode);
+            setSelectedBookIds([]);
+          }}
+          className={`px-4.5 py-2.5 rounded-2xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+            isBulkMode
+              ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+              : 'bg-card border-border-custom text-muted-custom hover:text-foreground'
+          }`}
+        >
+          {isBulkMode ? 'Cancel Select' : 'Bulk Select'}
+        </button>
       </header>
 
       {/* Search Input */}
@@ -217,16 +262,29 @@ function EbooksContent() {
             return (
               <div 
                 key={book.id} 
-                onClick={() => setSelectedBook({ id: book.id })}
-                className={`group cursor-pointer flex flex-col gap-3 p-3.5 border rounded-3xl shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-md hover:border-accent-gold/45 ${colors.cardBg}`}
+                onClick={() => handleCardClick(book)}
+                className={`group cursor-pointer flex flex-col gap-3 p-3.5 border rounded-3xl shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-md hover:border-accent-gold/45 relative ${
+                  isBulkMode && selectedBookIds.includes(book.id)
+                    ? 'border-accent-gold ring-2 ring-accent-gold/20'
+                    : colors.cardBg
+                }`}
               >
                 {/* 3D Skeuomorphic Cover */}
                 <div className={`aspect-[2/3] w-full book-cover-3d p-4 font-serif text-xs select-none flex flex-col justify-between relative ${colors.coverBg}`}>
-                  {book.isFavorite && (
+                  {isBulkMode ? (
+                    <div className="absolute top-2 left-2 z-10">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedBookIds.includes(book.id)} 
+                        onChange={() => {}} 
+                        className="w-4 h-4 accent-accent-gold cursor-pointer"
+                      />
+                    </div>
+                  ) : book.isFavorite ? (
                     <div className="absolute top-2 right-2 text-accent-gold z-10">
                       <Star className="w-4 h-4 fill-accent-gold" />
                     </div>
-                  )}
+                  ) : null}
                   <span className="font-bold leading-snug text-sm line-clamp-4">{book.title}</span>
                   <span className="text-[10px] opacity-75">{book.author}</span>
                 </div>
@@ -260,6 +318,40 @@ function EbooksContent() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Floating Bulk Action Bar */}
+      {isBulkMode && selectedBookIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 max-w-lg w-[90%] bg-card/85 backdrop-blur-md border border-border-custom rounded-3xl p-4 shadow-xl z-50 flex items-center justify-between gap-4 animate-fade-in">
+          <div className="text-xs font-semibold text-foreground">
+            <span className="text-accent-gold font-bold">{selectedBookIds.length}</span> books selected
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <select
+              value={bulkCategory}
+              onChange={(e) => setBulkCategory(e.target.value)}
+              className="bg-background border border-border-custom rounded-xl px-2.5 py-1.5 text-xs text-foreground focus:outline-none cursor-pointer font-semibold"
+            >
+              <option value="">Move to...</option>
+              {collections.map((c) => (
+                <option key={c.slug} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+            
+            <button
+              onClick={handleBulkCategorize}
+              disabled={!bulkCategory}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                bulkCategory 
+                  ? 'bg-accent-gold text-background hover:opacity-90' 
+                  : 'bg-neutral-600 text-neutral-400 cursor-not-allowed'
+              }`}
+            >
+              Apply
+            </button>
+          </div>
         </div>
       )}
 
