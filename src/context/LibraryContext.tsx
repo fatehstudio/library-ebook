@@ -1,0 +1,889 @@
+'use client';
+
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+
+export interface Collection {
+  name: string;
+  slug: string;
+  color: string;
+  count: number;
+}
+
+export interface Book {
+  id: string;
+  title: string;
+  author: string;
+  progress: number;
+  currentPage: number;
+  totalPages: number;
+  status: string;
+  rating: number;
+  isFavorite: boolean;
+  collection: string;
+  coverColor: string;
+  description: string;
+  dateAdded: string;
+  googleDriveFileId?: string;
+}
+
+export interface Video {
+  id: string;
+  title: string;
+  author: string;
+  duration: string;
+  progress: number;
+  currentTime: number;
+  totalDuration: number;
+  status: string;
+  rating: number;
+  isFavorite: boolean;
+  collection: string;
+  thumbnailColor: string;
+  description: string;
+  dateAdded: string;
+  googleDriveFileId?: string;
+}
+
+export interface Highlight {
+  id: string;
+  text: string;
+  source: string;
+  author: string;
+  collection: string;
+  dateAdded: string;
+  color?: string;
+  note?: string;
+}
+
+export interface Dashboard {
+  id: string;
+  name: string;
+  url: string;
+  iconType: 'trading' | 'quran' | 'fateh' | 'ai' | 'generic';
+  status: string;
+  stats: { label: string; value: string }[];
+}
+
+interface LibraryContextType {
+  collections: Collection[];
+  books: Book[];
+  videos: Video[];
+  highlights: Highlight[];
+  dashboards: Dashboard[];
+  isCloudMode: boolean;
+  isConnectedToDrive: boolean;
+  isSyncing: boolean;
+  addCollection: (name: string) => Promise<void>;
+  deleteCollection: (slug: string) => Promise<void>;
+  updateBookProgress: (id: string, page: number) => Promise<void>;
+  updateBookRating: (id: string, rating: number) => Promise<void>;
+  toggleBookFavorite: (id: string) => Promise<void>;
+  updateVideoProgress: (id: string, time: number, duration?: number) => Promise<void>;
+  updateVideoRating: (id: string, rating: number) => Promise<void>;
+  toggleVideoFavorite: (id: string) => Promise<void>;
+  addDashboard: (name: string, url: string) => Promise<void>;
+  updateDashboard: (id: string, name: string, url: string) => Promise<void>;
+  deleteDashboard: (id: string) => Promise<void>;
+  syncGoogleDrive: () => Promise<void>;
+  addHighlight: (libraryItemId: string, text: string, note?: string, color?: string) => Promise<void>;
+}
+
+const DEFAULT_COLLECTIONS: Collection[] = [
+  { name: 'Quran', slug: 'quran', color: 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400', count: 3 },
+  { name: 'Trading', slug: 'trading', color: 'border-blue-500/20 bg-blue-500/5 text-blue-400', count: 1 },
+  { name: 'Fateh', slug: 'fateh', color: 'border-amber-500/20 bg-amber-500/5 text-amber-400', count: 0 },
+  { name: 'AI', slug: 'ai', color: 'border-purple-500/20 bg-purple-500/5 text-purple-400', count: 1 },
+  { name: 'Self Development', slug: 'self-development', color: 'border-indigo-500/20 bg-indigo-500/5 text-indigo-400', count: 2 },
+];
+
+const DEFAULT_BOOKS: Book[] = [
+  {
+    id: '1',
+    title: 'Trading in the Zone',
+    author: 'Mark Douglas',
+    progress: 68,
+    currentPage: 152,
+    totalPages: 224,
+    status: 'reading',
+    rating: 5,
+    isFavorite: true,
+    collection: 'Trading',
+    coverColor: 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400',
+    description: 'Douglas uncovers the underlying reasons for lack of consistency and helps traders overcome the mental habits that prevent them from winning.',
+    dateAdded: '2026-07-15'
+  },
+  {
+    id: '2',
+    title: 'The Productive Muslim',
+    author: 'Mohammed Faris',
+    progress: 42,
+    currentPage: 96,
+    totalPages: 230,
+    status: 'reading',
+    rating: 4,
+    isFavorite: true,
+    collection: 'Quran',
+    coverColor: 'bg-amber-950/40 border-amber-500/20 text-amber-400',
+    description: 'This book combines Islamic spiritual principles with modern productivity techniques to help you live a balanced, purposeful, and productive life.',
+    dateAdded: '2026-07-28'
+  },
+  {
+    id: '3',
+    title: 'Atomic Habits',
+    author: 'James Clear',
+    progress: 100,
+    currentPage: 320,
+    totalPages: 320,
+    status: 'completed',
+    rating: 5,
+    isFavorite: false,
+    collection: 'Self Development',
+    coverColor: 'bg-indigo-950/40 border-indigo-500/20 text-indigo-400',
+    description: 'Tiny Changes, Remarkable Results. Clear offers a proven framework for improving—every day. Learn how to form good habits, break bad ones, and master the tiny behaviors that lead to remarkable results.',
+    dateAdded: '2026-06-10'
+  },
+  {
+    id: '4',
+    title: 'The Quran (English translation)',
+    author: 'M.A.S. Abdel Haleem',
+    progress: 0,
+    currentPage: 0,
+    totalPages: 480,
+    status: 'not_started',
+    rating: 0,
+    isFavorite: true,
+    collection: 'Quran',
+    coverColor: 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400',
+    description: 'Haleems translation is written in modern English, making it highly accessible and readable. It includes Surah Al-Baqarah, Surah Al-Mulk and other key chapters with contextual notes.',
+    dateAdded: '2026-08-01'
+  },
+  {
+    id: '5',
+    title: 'Tafsir Ibn Kathir (Surah Al-Baqarah)',
+    author: 'Imam Ibn Kathir',
+    progress: 15,
+    currentPage: 35,
+    totalPages: 240,
+    status: 'reading',
+    rating: 5,
+    isFavorite: true,
+    collection: 'Quran',
+    coverColor: 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400',
+    description: 'A comprehensive commentary of Surah Al-Baqarah (The Cow), detailing the meanings, history, lessons, and rulings of the longest surah in the Quran.',
+    dateAdded: '2026-07-29'
+  },
+  {
+    id: '6',
+    title: 'Introduction to Machine Learning',
+    author: 'Alex Smola',
+    progress: 0,
+    currentPage: 0,
+    totalPages: 410,
+    status: 'not_started',
+    rating: 0,
+    isFavorite: false,
+    collection: 'AI',
+    coverColor: 'bg-purple-950/40 border-purple-500/20 text-purple-400',
+    description: 'A comprehensive textbook covering mathematical foundations of machine learning, classification, clustering, regression, and optimization.',
+    dateAdded: '2026-07-29'
+  }
+];
+
+const DEFAULT_VIDEOS: Video[] = [
+  {
+    id: '1',
+    title: 'Fateh Task Workflow Tutorial',
+    author: 'Fateh System Guide',
+    duration: '14:20',
+    progress: 80,
+    currentTime: 11.5,
+    totalDuration: 14.33,
+    status: 'watching',
+    rating: 5,
+    isFavorite: true,
+    collection: 'Fateh',
+    thumbnailColor: 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400',
+    description: 'A step-by-step video guide explaining the Fateh dashboard, showing how daily tasks are mapped, logged, and synchronized with your learning targets.',
+    dateAdded: '2026-07-28'
+  },
+  {
+    id: '2',
+    title: 'Trading Psychology Mastery',
+    author: 'Mark Douglas Masterclass',
+    duration: '45:10',
+    progress: 15,
+    currentTime: 6.75,
+    totalDuration: 45.16,
+    status: 'watching',
+    rating: 4,
+    isFavorite: true,
+    collection: 'Trading',
+    thumbnailColor: 'bg-blue-950/40 border-blue-500/20 text-blue-400',
+    description: 'Focuses on the mental barriers traders face, explaining how fear, greed, and hope corrupt trading execution, and how to develop a probability-based mindset.',
+    dateAdded: '2026-07-30'
+  },
+  {
+    id: '3',
+    title: 'Surah Al-Baqarah Tafsir Series (Part 1)',
+    author: 'Ustadh Nouman Ali Khan',
+    duration: '55:30',
+    progress: 35,
+    currentTime: 19.42,
+    totalDuration: 55.5,
+    status: 'watching',
+    rating: 5,
+    isFavorite: true,
+    collection: 'Quran',
+    thumbnailColor: 'bg-amber-950/40 border-amber-500/20 text-amber-400',
+    description: 'Detailed analysis and word-for-word explanation of the opening verses of Surah Al-Baqarah, focusing on self-guidance and the classification of believers.',
+    dateAdded: '2026-08-02'
+  },
+  {
+    id: '4',
+    title: 'Quran Tafsir Surah Al-Mulk',
+    author: 'Ustadh Nouman Ali Khan',
+    duration: '35:40',
+    progress: 100,
+    currentTime: 35.66,
+    totalDuration: 35.66,
+    status: 'completed',
+    rating: 5,
+    isFavorite: false,
+    collection: 'Quran',
+    thumbnailColor: 'bg-amber-950/40 border-amber-500/20 text-amber-400',
+    description: 'An in-depth linguistic and contextual commentary on Surah Al-Mulk, exploring its central themes of sovereignty, creation, reflection, and human responsibility.',
+    dateAdded: '2026-07-20'
+  }
+];
+
+const DEFAULT_HIGHLIGHTS: Highlight[] = [
+  {
+    id: '1',
+    text: "The Prophet (ﷺ) said: 'Do not make your houses like graves. Verily, Satan flees from the house in which Surah Al-Baqarah is recited.'",
+    source: "Sahih Muslim, virtues of Surah Al-Baqarah",
+    author: "Prophet Muhammad (ﷺ)",
+    collection: "Quran",
+    dateAdded: "2026-07-20"
+  },
+  {
+    id: '2',
+    text: "Consistency in trading is built upon the complete acceptance of risk, which means trading without fear, hesitation, or regret.",
+    source: "Trading in the Zone (Page 112)",
+    author: "Mark Douglas",
+    collection: "Trading",
+    dateAdded: "2026-07-16"
+  },
+  {
+    id: '3',
+    text: "A highlight about the virtues of Ayat al-Kursi (Surah Al-Baqarah, verse 255): It is the greatest verse in the Book of Allah.",
+    source: "Tafsir Ibn Kathir",
+    author: "Imam Ibn Kathir",
+    collection: "Quran",
+    dateAdded: "2026-07-30"
+  }
+];
+
+const DEFAULT_DASHBOARDS: Dashboard[] = [
+  {
+    id: 'trading',
+    name: 'Trading Dashboard',
+    url: 'https://trading-dashboard-omega.vercel.app',
+    iconType: 'trading',
+    status: 'ACTIVE',
+    stats: [
+      { label: 'Win Rate', value: '64.5%' },
+      { label: 'Trades Today', value: '4' },
+      { label: 'Profit Target', value: 'Reached' }
+    ]
+  },
+  {
+    id: 'quran',
+    name: 'Quran Dashboard',
+    url: 'https://quran-dashboard-gamma.vercel.app',
+    iconType: 'quran',
+    status: 'ACTIVE',
+    stats: [
+      { label: 'Hifz Memorized', value: '4 Juz' },
+      { label: 'Today\'s Revision', value: '5 Pages' },
+      { label: 'Streak', value: '18 Days' }
+    ]
+  },
+  {
+    id: 'fateh',
+    name: 'Fateh Task Dashboard',
+    url: 'https://fateh-tasks.vercel.app',
+    iconType: 'fateh',
+    status: '12 TODO',
+    stats: [
+      { label: 'Tasks Done Today', value: '8' },
+      { label: 'Focus Score', value: '92%' },
+      { label: 'Next Meeting', value: '2:30 PM' }
+    ]
+  },
+  {
+    id: 'ai',
+    name: 'AI Dashboard',
+    url: 'https://ai-dashboard-beta.vercel.app',
+    iconType: 'ai',
+    status: 'ACTIVE',
+    stats: [
+      { label: 'Tokens Used', value: '14.2k' },
+      { label: 'Models Active', value: 'Gemini Pro' },
+      { label: 'Agent status', value: 'Idle' }
+    ]
+  }
+];
+
+const LibraryContext = createContext<LibraryContextType | undefined>(undefined);
+
+export function LibraryProvider({ children }: { children: React.ReactNode }) {
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [dashboards, setDashboards] = useState<Dashboard[]>([]);
+  
+  // Integration States
+  const [isCloudMode, setIsCloudMode] = useState(false);
+  const [isConnectedToDrive, setIsConnectedToDrive] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const userId = '00000000-0000-0000-0000-000000000000'; // Static UUID key for single-user home system configuration
+
+  // Reload library catalog files from Supabase (shared action)
+  const loadDatabaseData = async () => {
+    try {
+      // 1. Check if Supabase URL is placeholder
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      if (!supabaseUrl || supabaseUrl.startsWith('your_') || supabaseUrl.includes('placeholder')) {
+        setIsCloudMode(false);
+        return false;
+      }
+
+      // Check Google OAuth connection status
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('google_refresh_token')
+        .eq('id', userId)
+        .single();
+
+      if (profile && profile.google_refresh_token) {
+        setIsConnectedToDrive(true);
+      }
+
+      setIsCloudMode(true);
+
+      // Load collections
+      const { data: dbCols } = await supabase
+        .from('collections')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (dbCols && dbCols.length > 0) {
+        setCollections(dbCols.map(c => ({
+          name: c.name,
+          slug: c.slug,
+          color: c.color || 'border-indigo-500/20 bg-indigo-500/5 text-indigo-400',
+          count: 0
+        })));
+      } else {
+        // Seed default collections if empty in DB
+        for (const col of DEFAULT_COLLECTIONS) {
+          await supabase.from('collections').insert({
+            user_id: userId,
+            name: col.name,
+            slug: col.slug,
+            color: col.color
+          });
+        }
+        setCollections(DEFAULT_COLLECTIONS);
+      }
+
+      // Load library items (Books & Videos)
+      const { data: dbItems } = await supabase
+        .from('library_items')
+        .select('*')
+        .eq('user_id', userId);
+
+      const mappedBooks: Book[] = [];
+      const mappedVids: Video[] = [];
+
+      if (dbItems && dbItems.length > 0) {
+
+        dbItems.forEach(item => {
+          if (item.type === 'ebook') {
+            mappedBooks.push({
+              id: item.id,
+              title: item.title,
+              author: item.author || 'Google Drive File',
+              progress: Math.round(item.progress_percent || 0),
+              currentPage: item.current_page || 0,
+              totalPages: item.total_pages || 300,
+              status: item.status || 'not_started',
+              rating: item.rating || 0,
+              isFavorite: item.is_favorite || false,
+              collection: 'Self Development', // default or custom category mapping
+              coverColor: 'bg-indigo-950/40 border-indigo-500/20 text-indigo-400',
+              description: item.description || '',
+              dateAdded: new Date(item.created_at).toISOString().split('T')[0],
+              googleDriveFileId: item.google_drive_file_id
+            });
+          } else {
+            mappedVids.push({
+              id: item.id,
+              title: item.title,
+              author: item.author || 'Drive Sync Video',
+              duration: item.total_duration ? `${Math.floor(item.total_duration / 60)}:00` : '15:00',
+              progress: Math.round(item.progress_percent || 0),
+              currentTime: item.current_time || 0,
+              totalDuration: item.total_duration || 900,
+              status: item.status === 'completed' ? 'completed' : 'watching',
+              rating: item.rating || 0,
+              isFavorite: item.is_favorite || false,
+              collection: 'Quran', // default
+              thumbnailColor: 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400',
+              description: item.description || '',
+              dateAdded: new Date(item.created_at).toISOString().split('T')[0],
+              googleDriveFileId: item.google_drive_file_id
+            });
+          }
+        });
+
+        setBooks(mappedBooks);
+        setVideos(mappedVids);
+      } else {
+        // Seed default items into library if empty in DB
+        for (const book of DEFAULT_BOOKS) {
+          await supabase.from('library_items').insert({
+            user_id: userId,
+            title: book.title,
+            author: book.author,
+            type: 'ebook',
+            status: book.status,
+            progress_percent: book.progress,
+            current_page: book.currentPage,
+            total_pages: book.totalPages,
+            rating: book.rating,
+            is_favorite: book.isFavorite,
+            description: book.description,
+            google_drive_file_id: `mock-${book.id}`
+          });
+        }
+
+        for (const vid of DEFAULT_VIDEOS) {
+          await supabase.from('library_items').insert({
+            user_id: userId,
+            title: vid.title,
+            author: vid.author,
+            type: 'video',
+            status: vid.status,
+            progress_percent: vid.progress,
+            current_time: vid.currentTime,
+            total_duration: vid.totalDuration * 60, // store seconds
+            rating: vid.rating,
+            is_favorite: vid.isFavorite,
+            description: vid.description,
+            google_drive_file_id: `mock-${vid.id}`
+          });
+        }
+        setBooks(DEFAULT_BOOKS);
+        setVideos(DEFAULT_VIDEOS);
+      }
+
+      // Load Highlights
+      const { data: dbHighlights } = await supabase
+        .from('highlights')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (dbHighlights && dbHighlights.length > 0) {
+        setHighlights(dbHighlights.map(h => {
+          const matchedBook = mappedBooks.find(b => b.id === h.library_item_id) || DEFAULT_BOOKS.find(b => b.id === h.library_item_id);
+          const matchedVid = mappedVids.find(v => v.id === h.library_item_id) || DEFAULT_VIDEOS.find(v => v.id === h.library_item_id);
+          const sourceTitle = matchedBook?.title || matchedVid?.title || 'Library Item Highlight';
+          const sourceAuthor = matchedBook?.author || matchedVid?.author || 'Highlight User';
+          const sourceCollection = matchedBook?.collection || matchedVid?.collection || 'Self Development';
+          
+          return {
+            id: h.id,
+            text: h.text,
+            source: sourceTitle,
+            author: sourceAuthor,
+            collection: sourceCollection,
+            dateAdded: new Date(h.created_at).toISOString().split('T')[0],
+            color: h.color,
+            note: h.note
+          };
+        }));
+      } else {
+        // Seed default highlights
+        for (const h of DEFAULT_HIGHLIGHTS) {
+          await supabase.from('highlights').insert({
+            user_id: userId,
+            text: h.text,
+            note: h.text
+          });
+        }
+        setHighlights(DEFAULT_HIGHLIGHTS);
+      }
+
+      // Set dashboards from localStorage fallback
+      const savedDashboards = localStorage.getItem('kb-dashboards');
+      if (savedDashboards) {
+        try { setDashboards(JSON.parse(savedDashboards)); } catch (e) { setDashboards(DEFAULT_DASHBOARDS); }
+      } else {
+        setDashboards(DEFAULT_DASHBOARDS);
+      }
+
+      return true;
+    } catch (err) {
+      console.warn('Supabase DB connection failed. Falling back to local state.', err);
+      setIsCloudMode(false);
+      return false;
+    }
+  };
+
+  // Initial Load Trigger
+  useEffect(() => {
+    loadDatabaseData().then(success => {
+      if (!success) {
+        // Fallback local loading
+        const savedCols = localStorage.getItem('kb-collections');
+        setCollections(savedCols ? JSON.parse(savedCols) : DEFAULT_COLLECTIONS);
+        
+        const savedBooks = localStorage.getItem('kb-books');
+        setBooks(savedBooks ? JSON.parse(savedBooks) : DEFAULT_BOOKS);
+        
+        const savedVids = localStorage.getItem('kb-videos');
+        setVideos(savedVids ? JSON.parse(savedVids) : DEFAULT_VIDEOS);
+        
+        const savedHighlights = localStorage.getItem('kb-highlights');
+        setHighlights(savedHighlights ? JSON.parse(savedHighlights) : DEFAULT_HIGHLIGHTS);
+
+        const savedDashboards = localStorage.getItem('kb-dashboards');
+        setDashboards(savedDashboards ? JSON.parse(savedDashboards) : DEFAULT_DASHBOARDS);
+      }
+    });
+  }, []);
+
+  const addCollection = async (name: string) => {
+    const slug = name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    if (!slug) return;
+    if (collections.some(c => c.slug === slug)) {
+      alert('A category with this name already exists.');
+      return;
+    }
+    const borderColors = ['border-pink-500/20 bg-pink-500/5 text-pink-400', 'border-rose-500/20 bg-rose-500/5 text-rose-400', 'border-cyan-500/20 bg-cyan-500/5 text-cyan-400', 'border-orange-500/20 bg-orange-500/5 text-orange-400', 'border-yellow-500/20 bg-yellow-500/5 text-yellow-400'];
+    const randomColor = borderColors[Math.floor(Math.random() * borderColors.length)];
+    const newCol: Collection = { name, slug, color: randomColor, count: 0 };
+    
+    const updated = [...collections, newCol];
+    setCollections(updated);
+    localStorage.setItem('kb-collections', JSON.stringify(updated));
+
+    if (isCloudMode) {
+      await supabase.from('collections').insert({
+        user_id: userId,
+        name,
+        slug,
+        color: randomColor
+      });
+    }
+  };
+
+  const deleteCollection = async (slug: string) => {
+    const updated = collections.filter(c => c.slug !== slug);
+    setCollections(updated);
+    localStorage.setItem('kb-collections', JSON.stringify(updated));
+
+    if (isCloudMode) {
+      await supabase.from('collections').delete().eq('user_id', userId).eq('slug', slug);
+    }
+  };
+
+  const updateBookProgress = async (id: string, page: number) => {
+    const updatedBooks = books.map(book => {
+      if (book.id !== id) return book;
+      const validatedPage = Math.max(0, Math.min(page, book.totalPages));
+      const percentage = Math.round((validatedPage / book.totalPages) * 100);
+      const status = validatedPage === 0 ? 'not_started' : validatedPage === book.totalPages ? 'completed' : 'reading';
+      return { ...book, currentPage: validatedPage, progress: percentage, status };
+    });
+    setBooks(updatedBooks);
+    localStorage.setItem('kb-books', JSON.stringify(updatedBooks));
+
+    if (isCloudMode) {
+      const targetBook = books.find(b => b.id === id);
+      if (targetBook) {
+        const validatedPage = Math.max(0, Math.min(page, targetBook.totalPages));
+        const percentage = Math.round((validatedPage / targetBook.totalPages) * 100);
+        const status = validatedPage === 0 ? 'not_started' : validatedPage === targetBook.totalPages ? 'completed' : 'reading';
+        
+        await supabase
+          .from('library_items')
+          .update({
+            current_page: validatedPage,
+            progress_percent: percentage,
+            status: status,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('id', id);
+      }
+    }
+  };
+
+  const updateBookRating = async (id: string, rating: number) => {
+    const updatedBooks = books.map(book => {
+      if (book.id !== id) return book;
+      return { ...book, rating: Math.max(1, Math.min(5, rating)) };
+    });
+    setBooks(updatedBooks);
+    localStorage.setItem('kb-books', JSON.stringify(updatedBooks));
+
+    if (isCloudMode) {
+      await supabase
+        .from('library_items')
+        .update({ rating: Math.max(1, Math.min(5, rating)), updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('id', id);
+    }
+  };
+
+  const toggleBookFavorite = async (id: string) => {
+    let nextFav = false;
+    const updatedBooks = books.map(book => {
+      if (book.id !== id) return book;
+      nextFav = !book.isFavorite;
+      return { ...book, isFavorite: nextFav };
+    });
+    setBooks(updatedBooks);
+    localStorage.setItem('kb-books', JSON.stringify(updatedBooks));
+
+    if (isCloudMode) {
+      await supabase
+        .from('library_items')
+        .update({ is_favorite: nextFav, updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('id', id);
+    }
+  };
+
+  const updateVideoProgress = async (id: string, time: number, duration?: number) => {
+    const updatedVids = videos.map(vid => {
+      if (vid.id !== id) return vid;
+      const targetDuration = duration !== undefined ? duration : vid.totalDuration;
+      const validatedTime = Math.max(0, Math.min(time, targetDuration));
+      const percentage = targetDuration > 0 ? Math.round((validatedTime / targetDuration) * 100) : 0;
+      const status = validatedTime === 0 ? 'not_started' : validatedTime === targetDuration ? 'completed' : 'watching';
+      const formattedMin = Math.floor(targetDuration / 60);
+      const formattedSec = Math.floor(targetDuration % 60);
+      const durationStr = `${formattedMin}:${formattedSec < 10 ? '0' : ''}${formattedSec}`;
+      return { 
+        ...vid, 
+        currentTime: validatedTime, 
+        totalDuration: targetDuration, 
+        duration: durationStr, 
+        progress: percentage, 
+        status 
+      };
+    });
+    setVideos(updatedVids);
+    localStorage.setItem('kb-videos', JSON.stringify(updatedVids));
+
+    if (isCloudMode) {
+      const targetVid = videos.find(v => v.id === id);
+      if (targetVid) {
+        const targetDuration = duration !== undefined ? duration : targetVid.totalDuration;
+        const validatedTime = Math.max(0, Math.min(time, targetDuration));
+        const percentage = targetDuration > 0 ? Math.round((validatedTime / targetDuration) * 100) : 0;
+        const status = validatedTime === 0 ? 'not_started' : validatedTime === targetDuration ? 'completed' : 'watching';
+        
+        await supabase
+          .from('library_items')
+          .update({
+            current_time: validatedTime,
+            total_duration: targetDuration,
+            progress_percent: percentage,
+            status: status === 'completed' ? 'completed' : 'reading',
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('id', id);
+      }
+    }
+  };
+
+  const updateVideoRating = async (id: string, rating: number) => {
+    const updatedVids = videos.map(vid => {
+      if (vid.id !== id) return vid;
+      return { ...vid, rating: Math.max(1, Math.min(5, rating)) };
+    });
+    setVideos(updatedVids);
+    localStorage.setItem('kb-videos', JSON.stringify(updatedVids));
+
+    if (isCloudMode) {
+      await supabase
+        .from('library_items')
+        .update({ rating: Math.max(1, Math.min(5, rating)), updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('id', id);
+    }
+  };
+
+  const toggleVideoFavorite = async (id: string) => {
+    let nextFav = false;
+    const updatedVids = videos.map(vid => {
+      if (vid.id !== id) return vid;
+      nextFav = !vid.isFavorite;
+      return { ...vid, isFavorite: nextFav };
+    });
+    setVideos(updatedVids);
+    localStorage.setItem('kb-videos', JSON.stringify(updatedVids));
+
+    if (isCloudMode) {
+      await supabase
+        .from('library_items')
+        .update({ is_favorite: nextFav, updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('id', id);
+    }
+  };
+
+  const addDashboard = async (name: string, url: string) => {
+    const id = name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    if (!id) return;
+    if (dashboards.some(d => d.id === id)) {
+      alert('A dashboard with this name already exists.');
+      return;
+    }
+
+    let urlFormatted = url.trim();
+    if (!urlFormatted.startsWith('http://') && !urlFormatted.startsWith('https://')) {
+      urlFormatted = 'https://' + urlFormatted;
+    }
+
+    const newDash: Dashboard = {
+      id,
+      name,
+      url: urlFormatted,
+      iconType: 'generic',
+      status: 'LINKED',
+      stats: [
+        { label: 'Type', value: 'Custom Link' },
+        { label: 'Status', value: 'Healthy' }
+      ]
+    };
+
+    const updated = [...dashboards, newDash];
+    setDashboards(updated);
+    localStorage.setItem('kb-dashboards', JSON.stringify(updated));
+  };
+
+  const updateDashboard = async (id: string, name: string, url: string) => {
+    let urlFormatted = url.trim();
+    if (!urlFormatted.startsWith('http://') && !urlFormatted.startsWith('https://')) {
+      urlFormatted = 'https://' + urlFormatted;
+    }
+
+    const updated = dashboards.map(d => {
+      if (d.id !== id) return d;
+      return { ...d, name, url: urlFormatted };
+    });
+    setDashboards(updated);
+    localStorage.setItem('kb-dashboards', JSON.stringify(updated));
+  };
+
+  const deleteDashboard = async (id: string) => {
+    const updated = dashboards.filter(d => d.id !== id);
+    setDashboards(updated);
+    localStorage.setItem('kb-dashboards', JSON.stringify(updated));
+  };
+
+  const syncGoogleDrive = async () => {
+    setIsSyncing(true);
+    try {
+      const resp = await fetch(`/api/sync?userId=${userId}`, { method: 'POST' });
+      if (!resp.ok) {
+        const err = await resp.json();
+        alert(`Google Drive Sync Failed: ${err.error}`);
+        return;
+      }
+      const data = await resp.json();
+      alert(`Sync Complete! Discovered ${data.filesDiscovered} files under /Knowledge Library folder, synced ${data.filesSynced} items.`);
+      await loadDatabaseData(); // Reload catalog from DB
+    } catch (err: any) {
+      alert(`Google Drive Sync Error: ${err.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const addHighlight = async (libraryItemId: string, text: string, note?: string, color?: string) => {
+    const targetBook = books.find(b => b.id === libraryItemId);
+    const targetVid = videos.find(v => v.id === libraryItemId);
+    const title = targetBook?.title || targetVid?.title || 'Unknown Source';
+    const author = targetBook?.author || targetVid?.author || 'Unknown Author';
+    const collection = targetBook?.collection || targetVid?.collection || 'General';
+
+    const newHighlight: Highlight = {
+      id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).substring(2, 11),
+      text,
+      source: title,
+      author,
+      collection,
+      dateAdded: new Date().toISOString().split('T')[0]
+    };
+
+    const updated = [newHighlight, ...highlights];
+    setHighlights(updated);
+    localStorage.setItem('kb-highlights', JSON.stringify(updated));
+
+    if (isCloudMode) {
+      await supabase.from('highlights').insert({
+        user_id: userId,
+        library_item_id: libraryItemId,
+        text,
+        note,
+        color: color || 'hsl(45, 100%, 75%)'
+      });
+    }
+  };
+
+  return (
+    <LibraryContext.Provider value={{ 
+      collections, 
+      books,
+      videos,
+      highlights,
+      dashboards,
+      isCloudMode,
+      isConnectedToDrive,
+      isSyncing,
+      addCollection, 
+      deleteCollection, 
+      updateBookProgress,
+      updateBookRating,
+      toggleBookFavorite,
+      updateVideoProgress,
+      updateVideoRating,
+      toggleVideoFavorite,
+      addDashboard,
+      updateDashboard,
+      deleteDashboard,
+      syncGoogleDrive,
+      addHighlight
+    }}>
+      {children}
+    </LibraryContext.Provider>
+  );
+}
+
+export function useLibrary() {
+  const context = useContext(LibraryContext);
+  if (!context) {
+    throw new Error('useLibrary must be used within a LibraryProvider');
+  }
+  return context;
+}
