@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseClient';
 import { decryptToken } from '@/lib/encryption';
+if (typeof global !== 'undefined' && !(global as any).DOMMatrix) {
+  (global as any).DOMMatrix = class DOMMatrix {};
+}
+
 
 export async function POST(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -180,11 +184,13 @@ export async function POST(request: NextRequest) {
 
     // 6. Index and upsert discovered files into Supabase library_items table
     let syncedCount = 0;
+    let indexedEbooksCount = 0;
+
     for (const file of discoveredFiles) {
       const type = file.mimeType === 'application/pdf' ? 'ebook' : 'video';
       const sizeBytes = file.size ? parseInt(file.size, 10) : 0;
       
-      const { error: upsertErr } = await supabaseAdmin
+      const { data: upsertData, error: upsertErr } = await supabaseAdmin
         .from('library_items')
         .upsert({
           user_id: userId,
@@ -194,10 +200,77 @@ export async function POST(request: NextRequest) {
           mime_type: file.mimeType,
           size_bytes: sizeBytes,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,google_drive_file_id' });
+        }, { onConflict: 'user_id,google_drive_file_id' })
+        .select('id')
+        .single();
 
-      if (!upsertErr) {
+      if (!upsertErr && upsertData) {
         syncedCount++;
+
+        // If it is a PDF, run the page indexing parser (limited to max 2 new ebooks per sync call to prevent timeouts)
+        if (type === 'ebook' && indexedEbooksCount < 2) {
+          try {
+            // Check if pages are already indexed for this book
+            const { count } = await supabaseAdmin
+              .from('pdf_pages')
+              .select('*', { count: 'exact', head: true })
+              .eq('library_item_id', upsertData.id);
+
+            if (count === 0) {
+              console.log(`Indexing pages for new ebook: ${file.name}`);
+              
+              // Download PDF from Google Drive API
+              const fileUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`;
+              const fileResp = await fetch(fileUrl, {
+                headers: { Authorization: `Bearer ${access_token}` },
+              });
+
+              if (fileResp.ok) {
+                // @ts-ignore
+                const pdfParse = require('pdf-parse');
+                const arrayBuffer = await fileResp.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                
+                const pages: Array<{ library_item_id: string, page_number: number, content: string }> = [];
+
+                // Custom page render callback to extract page-by-page text
+                const render_page = (pageData: any) => {
+                  return pageData.getTextContent()
+                    .then((textContent: any) => {
+                      let lastY, text = '';
+                      for (const item of textContent.items) {
+                        if (lastY === item.transform[5] || !lastY) {
+                          text += item.str + ' ';
+                        } else {
+                          text += '\n' + item.str + ' ';
+                        }
+                        lastY = item.transform[5];
+                      }
+                      pages.push({
+                        library_item_id: upsertData.id,
+                        page_number: pageData.pageIndex + 1,
+                        content: text.trim()
+                      });
+                      return text;
+                    });
+                };
+
+                await pdfParse(buffer, { pagerender: render_page });
+
+                if (pages.length > 0) {
+                  // Insert all pages in bulk
+                  await supabaseAdmin.from('pdf_pages').insert(pages);
+                  console.log(`Successfully indexed ${pages.length} pages for ebook: ${file.name}`);
+                  indexedEbooksCount++;
+                }
+              } else {
+                console.error(`Failed to download PDF for indexing: ${file.name}`, fileResp.status);
+              }
+            }
+          } catch (indexErr) {
+            console.error(`Page indexing failed for ebook: ${file.name}`, indexErr);
+          }
+        }
       } else {
         console.error(`Failed to upsert file ID ${file.id} in DB:`, upsertErr);
       }
