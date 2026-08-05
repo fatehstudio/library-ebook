@@ -87,6 +87,7 @@ interface LibraryContextType {
   deleteDashboard: (id: string) => Promise<void>;
   syncGoogleDrive: () => Promise<void>;
   addHighlight: (libraryItemId: string, text: string, note?: string, color?: string) => Promise<void>;
+  updateItemCollection: (itemId: string, collectionName: string) => Promise<void>;
 }
 
 const DEFAULT_COLLECTIONS: Collection[] = [
@@ -406,12 +407,27 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
         .select('*')
         .eq('user_id', userId);
 
+      // Load custom item-collection mappings
+      const { data: dbMappings } = await supabase
+        .from('library_item_collections')
+        .select('library_item_id, collections(name)');
+
       const mappedBooks: Book[] = [];
       const mappedVids: Video[] = [];
 
-      if (dbItems && dbItems.length > 0) {
+      const getMappedCollection = (itemId: string, defaultCollection: string) => {
+        if (!dbMappings || dbMappings.length === 0) return defaultCollection;
+        const match = dbMappings.find((m: any) => m.library_item_id === itemId);
+        if (match && match.collections) {
+          return (match.collections as any).name || defaultCollection;
+        }
+        return defaultCollection;
+      };
 
+      if (dbItems && dbItems.length > 0) {
         dbItems.forEach(item => {
+          const resolvedCategory = getMappedCollection(item.id, item.type === 'ebook' ? 'Self Development' : 'Quran');
+
           if (item.type === 'ebook') {
             mappedBooks.push({
               id: item.id,
@@ -423,7 +439,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
               status: item.status || 'not_started',
               rating: item.rating || 0,
               isFavorite: item.is_favorite || false,
-              collection: 'Self Development', // default or custom category mapping
+              collection: resolvedCategory,
               coverColor: 'bg-indigo-950/40 border-indigo-500/20 text-indigo-400',
               description: item.description || '',
               dateAdded: new Date(item.created_at).toISOString().split('T')[0],
@@ -441,7 +457,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
               status: item.status === 'completed' ? 'completed' : 'watching',
               rating: item.rating || 0,
               isFavorite: item.is_favorite || false,
-              collection: 'Quran', // default
+              collection: resolvedCategory,
               thumbnailColor: 'bg-emerald-950/40 border-emerald-500/20 text-emerald-400',
               description: item.description || '',
               dateAdded: new Date(item.created_at).toISOString().split('T')[0],
@@ -452,6 +468,13 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
 
         setBooks(mappedBooks);
         setVideos(mappedVids);
+
+        // Update collection item counts
+        setCollections(prev => prev.map(c => {
+          const bCount = mappedBooks.filter(b => b.collection.toLowerCase().trim() === c.name.toLowerCase().trim()).length;
+          const vCount = mappedVids.filter(v => v.collection.toLowerCase().trim() === c.name.toLowerCase().trim()).length;
+          return { ...c, count: bCount + vCount };
+        }));
       } else {
         // Seed default items into library if empty in DB
         for (const book of DEFAULT_BOOKS) {
@@ -851,6 +874,52 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateItemCollection = async (itemId: string, collectionName: string) => {
+    const updatedBooks = books.map(b => b.id === itemId ? { ...b, collection: collectionName } : b);
+    const updatedVids = videos.map(v => v.id === itemId ? { ...v, collection: collectionName } : v);
+    setBooks(updatedBooks);
+    setVideos(updatedVids);
+    localStorage.setItem('kb-books', JSON.stringify(updatedBooks));
+    localStorage.setItem('kb-videos', JSON.stringify(updatedVids));
+
+    // Update counts dynamically
+    setCollections(prev => prev.map(c => {
+      const bCount = updatedBooks.filter(b => b.collection.toLowerCase().trim() === c.name.toLowerCase().trim()).length;
+      const vCount = updatedVids.filter(v => v.collection.toLowerCase().trim() === c.name.toLowerCase().trim()).length;
+      return { ...c, count: bCount + vCount };
+    }));
+
+    if (isCloudMode) {
+      try {
+        const slug = collectionName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        const { data: colData } = await supabase
+          .from('collections')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('slug', slug)
+          .single();
+
+        if (colData) {
+          // Delete old mapping if exists
+          await supabase
+            .from('library_item_collections')
+            .delete()
+            .eq('library_item_id', itemId);
+
+          // Insert new mapping
+          await supabase
+            .from('library_item_collections')
+            .insert({
+              library_item_id: itemId,
+              collection_id: colData.id
+            });
+        }
+      } catch (err) {
+        console.error('Failed to update library item collection in DB:', err);
+      }
+    }
+  };
+
   return (
     <LibraryContext.Provider value={{ 
       collections, 
@@ -873,7 +942,8 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       updateDashboard,
       deleteDashboard,
       syncGoogleDrive,
-      addHighlight
+      addHighlight,
+      updateItemCollection
     }}>
       {children}
     </LibraryContext.Provider>
