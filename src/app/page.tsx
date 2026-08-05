@@ -64,12 +64,6 @@ const getCategoryColors = (collection: string) => {
   }
 };
 
-const RECENTLY_ADDED = [
-  { id: '3', title: 'Atomic Habits', type: 'ebook', date: 'Yesterday' },
-  { id: '4', title: 'Fateh Dashboard Walkthrough', type: 'video', date: '3 days ago' },
-  { id: '5', title: 'Gemini API Developers Guide', type: 'ebook', date: '4 days ago' }
-];
-
 const MOTIVATIONAL_QUOTES = [
   {
     text: "The best of people are those that bring most benefit to the rest of mankind.",
@@ -77,11 +71,11 @@ const MOTIVATIONAL_QUOTES = [
   },
   {
     text: "You do not rise to the level of your goals. You fall to the level of your systems.",
-    author: "James Clear (Atomic Habits)"
+    author: "James Clear"
   },
   {
     text: "Consistency in trading is built upon the acceptance of risk. When you accept risk, you accept outcomes.",
-    author: "Mark Douglas (Trading in the Zone)"
+    author: "Mark Douglas"
   },
   {
     text: "Start where you are. Use what you have. Do what you can.",
@@ -135,6 +129,14 @@ export default function Home() {
   };
 
   const continueReadingBooks = books.filter(b => b.status === 'reading').slice(0, 2);
+
+  // Dynamically calculate recently added items from user's library
+  const recentlyAddedItems = [
+    ...books.map(b => ({ id: b.id, title: b.title, type: 'ebook' as const, date: b.dateAdded || 'Recently' })),
+    ...videos.map(v => ({ id: v.id, title: v.title, type: 'video' as const, date: v.dateAdded || 'Recently' }))
+  ]
+  .sort((a, b) => b.id.localeCompare(a.id))
+  .slice(0, 3);
 
   // Universal Search calculations
   const query = searchQuery.trim().toLowerCase();
@@ -501,24 +503,30 @@ export default function Home() {
                   Recently Added
                 </h2>
                 <div className="flex flex-col gap-3">
-                  {RECENTLY_ADDED.map((item) => (
-                    <div 
-                      key={item.id}
-                      className="flex items-center gap-3.5 p-3 rounded-2xl bg-foreground/5 hover:bg-foreground/10 transition-colors cursor-pointer"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-accent-gold/10 flex items-center justify-center text-accent-gold shrink-0">
-                        {item.type === 'ebook' ? (
-                          <BookOpen className="w-4 h-4" />
-                        ) : (
-                          <Play className="w-4 h-4 text-emerald-500 fill-emerald-500/10" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-foreground truncate">{item.title}</p>
-                        <span className="text-[10px] text-muted-custom">{item.date}</span>
-                      </div>
+                  {recentlyAddedItems.length === 0 ? (
+                    <div className="text-xs text-muted-custom py-6 text-center border border-dashed border-border-custom rounded-2xl">
+                      No recent activities. Add your first ebook to begin!
                     </div>
-                  ))}
+                  ) : (
+                    recentlyAddedItems.map((item) => (
+                      <div 
+                        key={item.id}
+                        className="flex items-center gap-3.5 p-3 rounded-2xl bg-foreground/5 hover:bg-foreground/10 transition-colors cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-accent-gold/10 flex items-center justify-center text-accent-gold shrink-0">
+                          {item.type === 'ebook' ? (
+                            <BookOpen className="w-4 h-4" />
+                          ) : (
+                            <Play className="w-4 h-4 text-emerald-500 fill-emerald-500/10" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-foreground truncate">{item.title}</p>
+                          <span className="text-[10px] text-muted-custom">{item.date}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </section>
 
