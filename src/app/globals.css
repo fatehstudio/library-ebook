@@ -53,7 +53,7 @@
   --color-muted-custom: var(--muted);
   --color-header-custom: var(--header-color);
   --font-serif: var(--font-lora), var(--font-playfair), Georgia, serif;
-  --font-handwritten: var(--font-caveat), cursive;
+  --font-handwritten: var(--font-great-vibes), var(--font-caveat), cursive;
 }
 
 body {
