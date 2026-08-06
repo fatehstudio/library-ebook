@@ -52,7 +52,7 @@ export default function Settings() {
         <h1 className="text-sm font-medium text-muted-custom uppercase tracking-widest mb-1">
           Preferences & Controls
         </h1>
-        <p className="font-handwritten text-4xl font-bold tracking-tight text-header-custom">
+        <p className="font-handwritten text-5xl md:text-6xl font-bold tracking-tight text-header-custom">
           Settings
         </p>
       </header>
@@ -326,7 +326,7 @@ export default function Settings() {
                 [SYSTEM] Fetching offline encrypted refresh token credentials...
               </p>
               <p className="text-accent-gold animate-pulse mt-1">
-                &gt; Querying files in "/Knowledge Library" folder...
+                &gt; Querying files in &quot;/Knowledge Library&quot; folder...
               </p>
             </div>
           )}
