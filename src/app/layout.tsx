@@ -28,7 +28,7 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: "Knowledge Library — Distraction-Free Reading",
+  title: "Ummi's Library",
   description: "A premium, distraction-free personal Knowledge Library for ebooks, videos, notes, and dashboards.",
 };
 
