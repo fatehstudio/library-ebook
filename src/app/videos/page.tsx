@@ -135,7 +135,7 @@ function VideosContent() {
           <h1 className="text-sm font-medium text-muted-custom uppercase tracking-widest mb-1">
             Video lectures & guides
           </h1>
-          <p className="font-handwritten text-4xl font-bold tracking-tight text-header-custom">
+          <p className="font-handwritten text-5xl md:text-6xl font-bold tracking-tight text-header-custom">
             Videos
           </p>
         </div>
