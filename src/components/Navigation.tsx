@@ -45,7 +45,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
       <aside className="hidden md:flex flex-col w-64 fixed inset-y-0 left-0 bg-card/70 backdrop-blur-md border-r border-border-custom/50 px-4 py-6 z-20">
         <div className="flex items-center gap-3 px-2 mb-8">
           <BookOpen className="w-8 h-8 text-accent-gold" />
-          <span className="font-serif text-xl font-bold tracking-tight text-accent-gold">
+          <span className="font-handwritten text-2xl font-bold tracking-tight text-accent-gold">
             Ummi's Library
           </span>
         </div>
@@ -67,7 +67,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
                 <Icon className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${
                   isActive ? 'text-accent-gold' : 'text-muted-custom group-hover:text-foreground'
                 }`} />
-                <span className="text-sm">{item.label}</span>
+                <span className="font-handwritten text-lg font-bold tracking-wide">{item.label}</span>
               </Link>
             );
           })}
@@ -79,7 +79,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
             onClick={toggleTheme}
             className="flex items-center justify-between w-full px-3 py-2 text-xs text-muted-custom hover:text-foreground transition-colors"
           >
-            <span>Theme</span>
+            <span className="font-handwritten text-sm">Theme</span>
             <span className="px-2 py-0.5 rounded-md bg-foreground/10 text-[10px] uppercase font-bold tracking-wider">
               {theme === 'oled-dark' ? 'OLED Dark' : 'Sunlit'}
             </span>
@@ -88,7 +88,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
       </aside>
 
       {/* Bottom Nav for Mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card/75 backdrop-blur-md border-t border-border-custom/50 flex items-center justify-around px-2 z-20 pb-safe">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card/90 backdrop-blur-lg border-t border-border-custom/50 flex items-center justify-around z-20 px-2">
         {MOBILE_NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -101,7 +101,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
               }`}
             >
               <Icon className="w-5 h-5" />
-              <span className="text-[10px] tracking-tight">{item.label}</span>
+              <span className="font-handwritten text-xs font-bold tracking-tight">{item.label}</span>
             </Link>
           );
         })}
