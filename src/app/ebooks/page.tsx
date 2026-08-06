@@ -60,17 +60,73 @@ const getCategoryColors = (collection: string) => {
       };
   }
 };
+const MOTIVATIONAL_QUOTES = [
+  {
+    text: "The best of people are those that bring most benefit to the rest of mankind.",
+    author: "Prophet Muhammad (ﷺ)"
+  },
+  {
+    text: "You do not rise to the level of your goals. You fall to the level of your systems.",
+    author: "James Clear"
+  },
+  {
+    text: "Consistency in trading is built upon the acceptance of risk. When you accept risk, you accept outcomes.",
+    author: "Mark Douglas"
+  },
+  {
+    text: "Start where you are. Use what you have. Do what you can.",
+    author: "Arthur Ashe"
+  },
+  {
+    text: "Do not lose hope, nor be sad, for you will surely overcome if you are true in faith.",
+    author: "Surah Ali 'Imran (3:139)"
+  },
+  {
+    text: "The key to trading success is emotional discipline. If intelligence was key, many more would succeed.",
+    author: "Victor Sperandeo"
+  },
+  {
+    text: "Barakah is the attachment of divine goodness to a thing; if it is tiny, it increases.",
+    author: "Islamic Wisdom"
+  },
+  {
+    text: "Success is the sum of small efforts, repeated day in and day out.",
+    author: "Robert Collier"
+  },
+  {
+    text: "The master has failed more times than the beginner has even tried.",
+    author: "Stephen McCranie"
+  },
+  {
+    text: "Patience is not the ability to wait, but the ability to keep a good attitude while waiting.",
+    author: "Growth Mindset"
+  }
+];
 
 function EbooksContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { books, collections, updateBookProgress, updateBookRating, toggleBookFavorite, updateItemCollection, updateBookCover, searchPageContents, syncGoogleDrive, isSyncing } = useLibrary();
+
+  // Set initial daily quote index based on calendar day
+  const dayOfMonth = new Date().getDate();
+  const dailyIndex = dayOfMonth % MOTIVATIONAL_QUOTES.length;
+  const [quoteIndex, setQuoteIndex] = useState(dailyIndex);
+
+  const handleNextQuote = () => {
+    let nextIdx = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
+    while (nextIdx === quoteIndex) {
+      nextIdx = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
+    }
+    setQuoteIndex(nextIdx);
+  };
   
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedCollection, setSelectedCollection] = useState('all');
   const [selectedBook, setSelectedBook] = useState<{ id: string } | null>(null);
   const [pageInput, setPageInput] = useState('');
+  const [totalPagesInput, setTotalPagesInput] = useState('');
   const [coverInput, setCoverInput] = useState('');
 
   // Page-level full-text search states
@@ -118,9 +174,10 @@ function EbooksContent() {
   useEffect(() => {
     if (activeBook) {
       setPageInput(activeBook.currentPage.toString());
+      setTotalPagesInput(activeBook.totalPages.toString());
       setCoverInput(activeBook.coverImageUrl || '');
     }
-  }, [selectedBook?.id, activeBook?.currentPage, activeBook?.coverImageUrl]);
+  }, [selectedBook?.id, activeBook?.currentPage, activeBook?.totalPages, activeBook?.coverImageUrl]);
 
   // Sync category param from homepage clicks
   useEffect(() => {
@@ -193,7 +250,7 @@ function EbooksContent() {
           <h1 className="text-sm font-medium text-muted-custom uppercase tracking-widest mb-1">
             Ebooks Repository
           </h1>
-          <p className="font-handwritten text-4xl font-bold tracking-tight text-header-custom">
+          <p className="font-handwritten text-5xl md:text-6xl font-bold tracking-tight text-header-custom">
             Library
           </p>
         </div>
@@ -220,6 +277,31 @@ function EbooksContent() {
           </button>
         </div>
       </header>
+
+      {/* Daily Motivational Quote Card */}
+      <div 
+        onClick={handleNextQuote}
+        className="mb-8 p-5 bg-card/45 hover:bg-card/75 border border-border-custom/50 rounded-3xl shadow-sm hover:shadow-md cursor-pointer transition-all duration-300 group flex items-start justify-between gap-4 select-none relative overflow-hidden"
+        title="Click to switch quote"
+      >
+        {/* Subtle decorative glow */}
+        <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full bg-accent-gold/5 blur-xl pointer-events-none" />
+        
+        <div className="flex-1 relative z-10">
+          <span className="text-[8px] font-bold text-accent-gold bg-accent-gold/10 px-2 py-0.5 rounded-full border border-accent-gold/20 uppercase tracking-widest inline-flex items-center gap-1">
+            <Sparkles className="w-2.5 h-2.5" /> Quote of the Day
+          </span>
+          <p className="font-serif italic text-xs md:text-sm text-foreground mt-2.5 leading-relaxed">
+            "{MOTIVATIONAL_QUOTES[quoteIndex].text}"
+          </p>
+          <p className="text-[10px] text-muted-custom font-bold uppercase tracking-wider mt-2.5">
+            — {MOTIVATIONAL_QUOTES[quoteIndex].author}
+          </p>
+        </div>
+        <span className="text-[9px] font-bold text-muted-custom uppercase tracking-wider shrink-0 bg-foreground/5 group-hover:bg-accent-gold/15 group-hover:text-accent-gold px-2.5 py-1 rounded-xl transition-all self-center relative z-10">
+          Next Quote ✦
+        </span>
+      </div>
 
       {/* Search Input */}
       <div className="flex flex-col gap-2 mb-6">
@@ -639,31 +721,51 @@ function EbooksContent() {
                   Log Reading Progress
                 </h4>
                 
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 flex items-center bg-background border border-border-custom rounded-xl px-3 py-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max={activeBook.totalPages}
-                      value={pageInput}
-                      onChange={(e) => setPageInput(e.target.value)}
-                      className="w-16 bg-transparent text-foreground font-semibold text-center focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="text-xs text-muted-custom ml-1">/ {activeBook.totalPages} pages</span>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center bg-background border border-border-custom rounded-xl px-3 py-2">
+                      <span className="text-[9px] uppercase font-bold text-muted-custom mr-2">Current</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={pageInput}
+                        onChange={(e) => setPageInput(e.target.value)}
+                        className="w-full bg-transparent text-foreground font-semibold text-right focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    
+                    <span className="text-muted-custom">/</span>
+                    
+                    <div className="flex-1 flex items-center bg-background border border-border-custom rounded-xl px-3 py-2">
+                      <span className="text-[9px] uppercase font-bold text-muted-custom mr-2">Total</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={totalPagesInput}
+                        onChange={(e) => setTotalPagesInput(e.target.value)}
+                        className="w-full bg-transparent text-foreground font-semibold text-right focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
                   </div>
                   
                   <button
-                    onClick={() => {
-                      const val = parseInt(pageInput, 10);
-                      if (!isNaN(val) && val >= 0 && val <= activeBook.totalPages) {
-                        updateBookProgress(activeBook.id, val);
+                    onClick={async () => {
+                      const curVal = parseInt(pageInput, 10);
+                      const totVal = parseInt(totalPagesInput, 10);
+                      if (!isNaN(curVal) && !isNaN(totVal) && curVal >= 0 && totVal >= 1) {
+                        if (curVal > totVal) {
+                          alert("Current page cannot be greater than total pages!");
+                          return;
+                        }
+                        await updateBookProgress(activeBook.id, curVal, totVal);
+                        alert("Reading progress updated successfully!");
                       } else {
-                        alert(`Please enter a valid page number between 0 and ${activeBook.totalPages}.`);
+                        alert("Please enter valid current page (>= 0) and total pages (>= 1).");
                       }
                     }}
-                    className="px-4 py-2.5 bg-accent-gold text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all cursor-pointer shrink-0"
+                    className="w-full py-2.5 bg-accent-gold text-background rounded-xl text-xs font-bold hover:opacity-90 transition-all cursor-pointer shadow-sm"
                   >
-                    Save Progress
+                    Save Progress & Total Pages
                   </button>
                 </div>
               </div>
