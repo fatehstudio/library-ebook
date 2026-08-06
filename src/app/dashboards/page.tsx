@@ -11,7 +11,9 @@ import {
   Lock, 
   RefreshCw,
   Plus,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useLibrary } from '@/context/LibraryContext';
 
@@ -37,7 +39,7 @@ const getColorClass = (type: string) => {
 
 function DashboardContent() {
   const searchParams = useSearchParams();
-  const { dashboards, addDashboard } = useLibrary();
+  const { dashboards, addDashboard, reorderDashboards } = useLibrary();
   const [activePortal, setActivePortal] = useState('trading');
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDashName, setNewDashName] = useState('');
@@ -76,18 +78,41 @@ function DashboardContent() {
           <h1 className="text-sm font-medium text-muted-custom uppercase tracking-widest mb-1">
             Connected portals
           </h1>
-          <p className="font-handwritten text-4xl font-bold tracking-tight text-header-custom">
+          <p className="font-handwritten text-5xl md:text-6xl font-bold tracking-tight text-header-custom">
             Dashboards Hub
           </p>
         </div>
 
-        {/* Quick Add Button */}
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2.5 bg-accent-gold text-background border border-accent-gold rounded-2xl text-xs font-bold hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" /> Connect Link
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Reorder Buttons */}
+          {dashboards.length > 1 && currentPortal && (
+            <div className="flex items-center bg-card border border-border-custom rounded-2xl p-1 gap-1 shrink-0">
+              <button
+                onClick={() => reorderDashboards(currentPortal.id, 'left')}
+                className="p-1.5 hover:bg-foreground/5 text-muted-custom hover:text-foreground rounded-lg transition-colors cursor-pointer"
+                title="Move Active Portal Left"
+              >
+                <ChevronLeft className="w-4 h-4 text-accent-gold" />
+              </button>
+              <span className="text-[10px] font-bold text-muted-custom uppercase px-1 select-none">Order</span>
+              <button
+                onClick={() => reorderDashboards(currentPortal.id, 'right')}
+                className="p-1.5 hover:bg-foreground/5 text-muted-custom hover:text-foreground rounded-lg transition-colors cursor-pointer"
+                title="Move Active Portal Right"
+              >
+                <ChevronRight className="w-4 h-4 text-accent-gold" />
+              </button>
+            </div>
+          )}
+
+          {/* Quick Add Button */}
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="px-4 py-2.5 bg-accent-gold text-background border border-accent-gold rounded-2xl text-xs font-bold hover:opacity-90 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Connect Link
+          </button>
+        </div>
       </header>
 
       {/* Dynamic Pop-up Add Dashboard Form */}
@@ -98,7 +123,7 @@ function DashboardContent() {
               onClick={() => setShowAddForm(false)}
               className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-foreground/5 text-muted-custom hover:text-foreground transition-all cursor-pointer"
             >
-              <XIcon className="w-5 h-5" />
+              <X className="w-5 h-5" />
             </button>
             <h3 className="font-serif text-lg font-bold mb-2">Connect New Portal</h3>
             <p className="text-xs text-muted-custom mb-5">
