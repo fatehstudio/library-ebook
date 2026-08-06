@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Lora, Caveat } from "next/font/google";
+import { Geist, Geist_Mono, Lora, Caveat, Great_Vibes } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { LibraryProvider } from "@/context/LibraryContext";
@@ -27,6 +27,12 @@ const caveat = Caveat({
   weight: ["400", "500", "600", "700"],
 });
 
+const greatVibes = Great_Vibes({
+  variable: "--font-great-vibes",
+  subsets: ["latin"],
+  weight: ["400"],
+});
+
 export const metadata: Metadata = {
   title: "Ummi's Library",
   description: "A premium, distraction-free personal Knowledge Library for ebooks, videos, notes, and dashboards.",
@@ -41,7 +47,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${caveat.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${caveat.variable} ${greatVibes.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
