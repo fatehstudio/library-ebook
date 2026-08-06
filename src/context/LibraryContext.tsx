@@ -87,6 +87,7 @@ interface LibraryContextType {
   addDashboard: (name: string, url: string) => Promise<void>;
   updateDashboard: (id: string, name: string, url: string) => Promise<void>;
   deleteDashboard: (id: string) => Promise<void>;
+  reorderDashboards: (id: string, direction: 'left' | 'right') => Promise<void>;
   syncGoogleDrive: () => Promise<void>;
   addHighlight: (libraryItemId: string, text: string, note?: string, color?: string) => Promise<void>;
   updateHighlight: (id: string, text: string, note?: string) => Promise<void>;
@@ -119,21 +120,9 @@ const DEFAULT_HIGHLIGHTS: Highlight[] = [];
 
 const DEFAULT_DASHBOARDS: Dashboard[] = [
   {
-    id: 'trading',
-    name: 'Trading Dashboard',
-    url: 'https://trading-dashboard-omega.vercel.app',
-    iconType: 'trading',
-    status: 'ACTIVE',
-    stats: [
-      { label: 'Win Rate', value: '64.5%' },
-      { label: 'Trades Today', value: '4' },
-      { label: 'Profit Target', value: 'Reached' }
-    ]
-  },
-  {
     id: 'quran',
     name: 'Quran Dashboard',
-    url: 'https://quran-dashboard-gamma.vercel.app',
+    url: 'https://fatehstudio.github.io/quran_study/',
     iconType: 'quran',
     status: 'ACTIVE',
     stats: [
@@ -143,11 +132,35 @@ const DEFAULT_DASHBOARDS: Dashboard[] = [
     ]
   },
   {
-    id: 'fateh',
-    name: 'Fateh Task Dashboard',
-    url: 'https://fateh-tasks.vercel.app',
+    id: 'saham-notes',
+    name: 'Saham notes',
+    url: 'https://tinyurl.com/dashpakya',
+    iconType: 'trading',
+    status: 'ACTIVE',
+    stats: [
+      { label: 'Status', value: 'Verified' },
+      { label: 'Watchlist', value: 'Active' },
+      { label: 'Market', value: 'KLCI' }
+    ]
+  },
+  {
+    id: 'trading-class',
+    name: 'Trading Class Dashboard',
+    url: 'https://fatehstudio.github.io/ussta_dashboard/',
+    iconType: 'trading',
+    status: 'ACTIVE',
+    stats: [
+      { label: 'Win Rate', value: '64.5%' },
+      { label: 'Trades Today', value: '4' },
+      { label: 'Profit Target', value: 'Reached' }
+    ]
+  },
+  {
+    id: 'asset-hub',
+    name: 'Asset Hub',
+    url: 'https://fatehstudio.github.io/asset_management_hub/',
     iconType: 'fateh',
-    status: '12 TODO',
+    status: 'ACTIVE',
     stats: [
       { label: 'Tasks Done Today', value: '8' },
       { label: 'Focus Score', value: '92%' },
@@ -155,15 +168,15 @@ const DEFAULT_DASHBOARDS: Dashboard[] = [
     ]
   },
   {
-    id: 'ai',
-    name: 'AI Dashboard',
-    url: 'https://ai-dashboard-beta.vercel.app',
-    iconType: 'ai',
+    id: 'sifir-hub',
+    name: 'Sifir hub',
+    url: 'https://rebrand.ly/game_sifir',
+    iconType: 'generic',
     status: 'ACTIVE',
     stats: [
-      { label: 'Tokens Used', value: '14.2k' },
-      { label: 'Models Active', value: 'Gemini Pro' },
-      { label: 'Agent status', value: 'Idle' }
+      { label: 'Status', value: 'Active' },
+      { label: 'Score', value: 'High' },
+      { label: 'Game Mode', value: 'Enabled' }
     ]
   }
 ];
@@ -388,7 +401,26 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       // Set dashboards from localStorage fallback
       const savedDashboards = localStorage.getItem('kb-dashboards');
       if (savedDashboards) {
-        try { setDashboards(JSON.parse(savedDashboards)); } catch (e) { setDashboards(DEFAULT_DASHBOARDS); }
+        try { 
+          const parsed = JSON.parse(savedDashboards);
+          // Auto-migrate if it contains old demo dashboard URLs
+          const hasOldDemo = parsed.some((d: any) => 
+            d.url && (
+              d.url.includes('trading-dashboard-omega') || 
+              d.url.includes('quran-dashboard-gamma') || 
+              d.url.includes('fateh-tasks') || 
+              d.url.includes('ai-dashboard-beta')
+            )
+          );
+          if (hasOldDemo) {
+            localStorage.setItem('kb-dashboards', JSON.stringify(DEFAULT_DASHBOARDS));
+            setDashboards(DEFAULT_DASHBOARDS);
+          } else {
+            setDashboards(parsed);
+          }
+        } catch (e) { 
+          setDashboards(DEFAULT_DASHBOARDS); 
+        }
       } else {
         setDashboards(DEFAULT_DASHBOARDS);
       }
@@ -654,6 +686,25 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
 
   const deleteDashboard = async (id: string) => {
     const updated = dashboards.filter(d => d.id !== id);
+    setDashboards(updated);
+    localStorage.setItem('kb-dashboards', JSON.stringify(updated));
+  };
+
+  const reorderDashboards = async (id: string, direction: 'left' | 'right') => {
+    const index = dashboards.findIndex(d => d.id === id);
+    if (index === -1) return;
+
+    const updated = [...dashboards];
+    if (direction === 'left' && index > 0) {
+      const temp = updated[index];
+      updated[index] = updated[index - 1];
+      updated[index - 1] = temp;
+    } else if (direction === 'right' && index < updated.length - 1) {
+      const temp = updated[index];
+      updated[index] = updated[index + 1];
+      updated[index + 1] = temp;
+    }
+
     setDashboards(updated);
     localStorage.setItem('kb-dashboards', JSON.stringify(updated));
   };
@@ -925,6 +976,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
       addDashboard,
       updateDashboard,
       deleteDashboard,
+      reorderDashboards,
       syncGoogleDrive,
       addHighlight,
       updateHighlight,
