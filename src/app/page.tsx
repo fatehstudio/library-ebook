@@ -65,59 +65,8 @@ const getCategoryColors = (collection: string) => {
   }
 };
 
-const MOTIVATIONAL_QUOTES = [
-  {
-    text: "The best of people are those that bring most benefit to the rest of mankind.",
-    author: "Prophet Muhammad (ﷺ)"
-  },
-  {
-    text: "You do not rise to the level of your goals. You fall to the level of your systems.",
-    author: "James Clear"
-  },
-  {
-    text: "Consistency in trading is built upon the acceptance of risk. When you accept risk, you accept outcomes.",
-    author: "Mark Douglas"
-  },
-  {
-    text: "Start where you are. Use what you have. Do what you can.",
-    author: "Arthur Ashe"
-  },
-  {
-    text: "Do not lose hope, nor be sad, for you will surely overcome if you are true in faith.",
-    author: "Surah Ali 'Imran (3:139)"
-  },
-  {
-    text: "The key to trading success is emotional discipline. If intelligence was key, many more would succeed.",
-    author: "Victor Sperandeo"
-  },
-  {
-    text: "Barakah is the attachment of divine goodness to a thing; if it is tiny, it increases.",
-    author: "Islamic Wisdom"
-  },
-  {
-    text: "Success is the sum of small efforts, repeated day in and day out.",
-    author: "Robert Collier"
-  },
-  {
-    text: "The master has failed more times than the beginner has even tried.",
-    author: "Stephen McCranie"
-  },
-  {
-    text: "Patience is not the ability to wait, but the ability to keep a good attitude while waiting.",
-    author: "Growth Mindset"
-  }
-];
-
 export default function Home() {
-  const currentHour = new Date().getHours();
-  const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
   const { collections, books, videos, highlights, dashboards } = useLibrary();
-  
-  // Set initial daily quote index based on calendar day
-  const dayOfMonth = new Date().getDate();
-  const dailyIndex = dayOfMonth % MOTIVATIONAL_QUOTES.length;
-  
-  const [quoteIndex, setQuoteIndex] = useState(dailyIndex);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLayoutReversed, setIsLayoutReversed] = useState(false);
 
@@ -127,15 +76,6 @@ export default function Home() {
       setIsLayoutReversed(true);
     }
   }, []);
-
-  const handleNextQuote = () => {
-    let nextIdx = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
-    // Avoid repeating same quote if possible
-    while (nextIdx === quoteIndex) {
-      nextIdx = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
-    }
-    setQuoteIndex(nextIdx);
-  };
 
   const continueReadingBooks = books.filter(b => b.status === 'reading').slice(0, 2);
 
@@ -184,7 +124,7 @@ export default function Home() {
       {/* Top Header Row */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="font-handwritten text-4xl md:text-5xl font-bold tracking-tight text-header-custom leading-tight">
+          <h1 className="font-handwritten text-5xl md:text-6xl font-bold tracking-tight text-header-custom leading-tight">
             Let's make today meaningful
           </h1>
           <div className="flex items-center gap-2.5 text-sm md:text-base text-muted-custom mt-3.5 font-medium italic">
@@ -254,27 +194,22 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Daily Motivational Quote Card */}
-      <div 
-        onClick={handleNextQuote}
-        className="mb-8 p-5 bg-card/45 hover:bg-card/75 border border-border-custom/50 rounded-3xl shadow-sm hover:shadow-md cursor-pointer transition-all duration-300 group flex items-start justify-between gap-4 select-none"
-        title="Click to switch quote"
-      >
-        <div className="flex-1">
-          <span className="text-[8px] font-bold text-accent-gold bg-accent-gold/10 px-2 py-0.5 rounded-full border border-accent-gold/20 uppercase tracking-widest inline-flex items-center gap-1">
-            <Sparkles className="w-2.5 h-2.5" /> Quote of the Day
-          </span>
-          <p className="font-serif italic text-xs md:text-sm text-foreground mt-2.5 leading-relaxed">
-            "{MOTIVATIONAL_QUOTES[quoteIndex].text}"
+
+
+      {/* Motivational Quote/Reminder Card (Malay Version) */}
+      <section className="mb-8 p-6 rounded-3xl bg-radial from-accent-gold/10 to-transparent border border-accent-gold/20 relative overflow-hidden shadow-lg shadow-accent-gold/2">
+        <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+          <Sparkles className="w-24 h-24 text-accent-gold" />
+        </div>
+        <div className="max-w-2xl relative z-10">
+          <p className="font-serif text-base md:text-lg italic leading-relaxed text-foreground/90 mb-3">
+            "Barangsiapa yang menempuh satu jalan untuk mencari ilmu, maka Allah akan memudahkan baginya jalan menuju ke Syurga."
           </p>
-          <p className="text-[10px] text-muted-custom font-bold uppercase tracking-wider mt-2.5">
-            — {MOTIVATIONAL_QUOTES[quoteIndex].author}
+          <p className="text-xs font-semibold text-accent-gold tracking-widest uppercase">
+            — Sahih Muslim
           </p>
         </div>
-        <span className="text-[9px] font-bold text-muted-custom uppercase tracking-wider shrink-0 bg-foreground/5 group-hover:bg-accent-gold/15 group-hover:text-accent-gold px-2.5 py-1 rounded-xl transition-all self-center">
-          Next Quote ✦
-        </span>
-      </div>
+      </section>
 
       {/* Global AI & Library Search Bar */}
       <div className="relative mb-8 shadow-sm">
@@ -437,21 +372,6 @@ export default function Home() {
       ) : (
         /* Normal Dashboard View */
         <div className="flex flex-col gap-8">
-          
-          {/* Motivational Quote/Reminder Card */}
-          <section className="p-6 rounded-3xl bg-radial from-accent-gold/10 to-transparent border border-accent-gold/20 relative overflow-hidden shadow-lg shadow-accent-gold/2">
-            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-              <Sparkles className="w-24 h-24 text-accent-gold" />
-            </div>
-            <div className="max-w-2xl relative z-10">
-              <p className="font-serif text-lg md:text-xl italic leading-relaxed text-foreground/90 mb-3">
-                "He who treads a path in search of knowledge, Allah will direct him to a path leading to Paradise."
-              </p>
-              <p className="text-xs font-semibold text-accent-gold tracking-widest uppercase">
-                — Prophet Muhammad (ﷺ)
-              </p>
-            </div>
-          </section>
 
           {/* Main Grid: Continue Reading & Sidebar Widgets */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
