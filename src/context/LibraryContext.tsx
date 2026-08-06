@@ -78,7 +78,7 @@ interface LibraryContextType {
   isSyncing: boolean;
   addCollection: (name: string) => Promise<void>;
   deleteCollection: (slug: string) => Promise<void>;
-  updateBookProgress: (id: string, page: number) => Promise<void>;
+  updateBookProgress: (id: string, page: number, totalPages?: number) => Promise<void>;
   updateBookRating: (id: string, rating: number) => Promise<void>;
   toggleBookFavorite: (id: string) => Promise<void>;
   updateVideoProgress: (id: string, time: number, duration?: number) => Promise<void>;
@@ -491,13 +491,14 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateBookProgress = async (id: string, page: number) => {
+  const updateBookProgress = async (id: string, page: number, totalPages?: number) => {
     const updatedBooks = books.map(book => {
       if (book.id !== id) return book;
-      const validatedPage = Math.max(0, Math.min(page, book.totalPages));
-      const percentage = Math.round((validatedPage / book.totalPages) * 100);
-      const status = validatedPage === 0 ? 'not_started' : validatedPage === book.totalPages ? 'completed' : 'reading';
-      return { ...book, currentPage: validatedPage, progress: percentage, status };
+      const finalTotalPages = totalPages !== undefined ? Math.max(1, totalPages) : book.totalPages;
+      const validatedPage = Math.max(0, Math.min(page, finalTotalPages));
+      const percentage = Math.round((validatedPage / finalTotalPages) * 100);
+      const status = validatedPage === 0 ? 'not_started' : validatedPage === finalTotalPages ? 'completed' : 'reading';
+      return { ...book, currentPage: validatedPage, totalPages: finalTotalPages, progress: percentage, status };
     });
     setBooks(updatedBooks);
     localStorage.setItem('kb-books', JSON.stringify(updatedBooks));
@@ -505,14 +506,16 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     if (isCloudMode) {
       const targetBook = books.find(b => b.id === id);
       if (targetBook) {
-        const validatedPage = Math.max(0, Math.min(page, targetBook.totalPages));
-        const percentage = Math.round((validatedPage / targetBook.totalPages) * 100);
-        const status = validatedPage === 0 ? 'not_started' : validatedPage === targetBook.totalPages ? 'completed' : 'reading';
+        const finalTotalPages = totalPages !== undefined ? Math.max(1, totalPages) : targetBook.totalPages;
+        const validatedPage = Math.max(0, Math.min(page, finalTotalPages));
+        const percentage = Math.round((validatedPage / finalTotalPages) * 100);
+        const status = validatedPage === 0 ? 'not_started' : validatedPage === finalTotalPages ? 'completed' : 'reading';
         
         await supabase
           .from('library_items')
           .update({
             current_page: validatedPage,
+            total_pages: finalTotalPages,
             progress_percent: percentage,
             status: status,
             updated_at: new Date().toISOString()
