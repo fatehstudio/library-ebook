@@ -14,6 +14,7 @@ import {
   Activity 
 } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
+import FocusTimer from './FocusTimer';
 
 const NAV_ITEMS = [
   { label: 'Home', href: '/', icon: Home },
@@ -110,6 +111,9 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
       <main className="flex-1 md:pl-64 pb-20 md:pb-0 min-h-screen flex flex-col">
         {children}
       </main>
+
+      {/* Global Floating Focus Timer */}
+      <FocusTimer />
     </div>
   );
 }
